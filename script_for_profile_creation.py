@@ -18,7 +18,7 @@ from utils.loading import load_data_with_crs_2056
 from utils.sampling import extract_elevation_from_raster
 
 
-class ProfileScenario(Enum):
+class BeforeOrAfterFloodScenario(Enum):
     bf_2020 = "BF2020"
     af_2020 = "AF2020"
 
@@ -30,11 +30,11 @@ class PathsForProfileCreation:
     path_to_water_mask: str
 
 
-def create_paths(demanded_scenario: ProfileScenario) -> PathsForProfileCreation:
-    if demanded_scenario == ProfileScenario.bf_2020:
+def create_paths(demanded_scenario: BeforeOrAfterFloodScenario) -> PathsForProfileCreation:
+    if demanded_scenario == BeforeOrAfterFloodScenario.bf_2020:
         return PathsForProfileCreation(
             path_to_gps_points=(
-                "C:\\Users\\nflue\\Documents\\Masterarbeit\\02_Data\\03_Bathymetry\\BF2020\\GPS_transects_BF2020_selection_4transectsshp.shp"
+                "C:\\Users\\nflue\\Documents\\Masterarbeit\\02_Data\\03_Bathymetry\\BF2020\\GPS_transects_BF2020_selection.shp"
             ),
             path_to_water_mask=(
                 "C:\\Users\\nflue\\Documents\\Masterarbeit\\02_Data\\02_prep_bathy\\01b_BF2020_wettedarea\\BF2020_shoreline\\wetted_area_BF2020_neu.shp"
@@ -43,7 +43,7 @@ def create_paths(demanded_scenario: ProfileScenario) -> PathsForProfileCreation:
                 "C:\\Users\\nflue\\Documents\\Masterarbeit\\02_Data\\03_Bathymetry\\BF2020\\bathy_for_dod\\topo_to_raster_with_gravel_BF2020_with_gravel.tif"
             ),
         )
-    elif demanded_scenario == ProfileScenario.af_2020:
+    elif demanded_scenario == BeforeOrAfterFloodScenario.af_2020:
         return PathsForProfileCreation(
             path_to_gps_points=(
                 "C:\\Users\\nflue\\Documents\\Masterarbeit\\02_Data\\03_Bathymetry\\AF2020\\201102_sarine_nachflut_transects.shp"
@@ -52,18 +52,25 @@ def create_paths(demanded_scenario: ProfileScenario) -> PathsForProfileCreation:
                 "C:\\Users\\nflue\\Documents\\Masterarbeit\\02_Data\\02_prep_bathy\\01a_AF2020_wettedarea\\AF2020_shoreline\\wetted_area_AF2020.shp"
             ),
             path_to_raster=(
-                "C:\\Users\\nflue\\Documents\\Masterarbeit\\02_Data\\04_Model_220309\\04_Model\\04_export_files\\06_new_mesh_nina\\test06_af20_bed_elevation.tif"
+                "C:\\Users\\nflue\\Documents\\Masterarbeit\\02_Data\\03_Bathymetry\\AF2020\\topo_to_raster_with_gravel_AF2020.tif"
             ),
         )
 
 
-def rename_z_raster_column(gps_points_with_elevation: GeoDataFrame, scenario_id: ProfileScenario) -> GeoDataFrame:
-    new_column_name = f"z_{scenario_id.value}"
+def rename_z_raster_column(
+    gps_points_with_elevation: GeoDataFrame, scenario_id: BeforeOrAfterFloodScenario
+) -> GeoDataFrame:
+    new_column_name = create_z_column_name(scenario_id)
     gps_points_with_elevation[new_column_name] = gps_points_with_elevation["z_raster"]
+    del gps_points_with_elevation["z_raster"]
     gps_points_with_elevation[f"{scenario_id.value}-GPS"] = (
-            gps_points_with_elevation[f"z_{scenario_id.value}"] - gps_points_with_elevation["H"]
+        gps_points_with_elevation[f"z_{scenario_id.value}"] - gps_points_with_elevation["H"]
     )
     return gps_points_with_elevation
+
+
+def create_z_column_name(scenario_id: BeforeOrAfterFloodScenario) -> str:
+    return f"z_{scenario_id.value}"
 
 
 def merge_pairs_if_a_common_point_exists(pairs: list[tuple[int, int]]) -> list[set[int]]:
@@ -138,7 +145,7 @@ class ProjectedPointsPerProfileLine:
 
 
 def project_matched_points_on_profile_line(
-        matched_points_per_profile_line: PointsPerProfile,
+    matched_points_per_profile_line: PointsPerProfile,
 ) -> ProjectedPointsPerProfileLine:
     projected_points = matched_points_per_profile_line.gps_points.copy()
     if len(matched_points_per_profile_line.gps_points.index) > 0:
@@ -160,7 +167,7 @@ class OrderedProjectedGpsPointsPerProfileLine(ProjectedPointsPerProfileLine):
 
 
 def order_gps_points_from_line_origin_on(
-        projected_gps_points_on_profile_line: ProjectedPointsPerProfileLine,
+    projected_gps_points_on_profile_line: ProjectedPointsPerProfileLine,
 ) -> OrderedProjectedGpsPointsPerProfileLine:
     projected_gps_points_on_profile_line.projected_gps_points.reset_index(inplace=True)
     projected_gps_points_on_profile_line.projected_gps_points["distance"] = np.nan
@@ -184,8 +191,8 @@ def filter_points_with_less_than_zero_elevation(points: GeoDataFrame) -> GeoData
 
 
 def main():
-    scenario_id = ProfileScenario.af_2020
-    tin_nr = "TIN17"
+    scenario_id = BeforeOrAfterFloodScenario.bf_2020
+    tin_nr = "TIN20"
     paths = create_paths(scenario_id)
     gps_points = load_data_with_crs_2056(paths.path_to_gps_points)
     water_mask = load_data_with_crs_2056(paths.path_to_water_mask)
@@ -208,7 +215,7 @@ def main():
 
         x = list(points_per_line.geometry.apply(lambda point: point.x))
         y = list(points_per_line.geometry.apply(lambda point: point.y))
-        z = points_per_line["z_raster"]
+        z = points_per_line[create_z_column_name(scenario_id)]
         fitted_line = fit_a_line_to_the_points(x, y, segment_length=100)
         assert fitted_line.length > 0
         d = {"geometry": [fitted_line]}
@@ -251,20 +258,24 @@ def main():
             ordered_gps_points_on_profile_line = order_gps_points_from_line_origin_on(
                 projected_gps_points_on_profile_line
             )
-            none_of_the_points_on_the_line = ordered_gps_points_on_profile_line.projected_gps_points[
-                                                 "distance"].sum() == 0
+            none_of_the_points_on_the_line = (
+                ordered_gps_points_on_profile_line.projected_gps_points["distance"].sum() == 0
+            )
             if none_of_the_points_on_the_line:
                 continue
             # debug_plot(ordered_gps_points_on_profile_line.projected_gps_points, f"debug_plot_profiles{group_of_points}.jpg")
 
-            filename = f"river_profiles_from_bathymetry\\points_with_line_{scenario_id.value}_{group_id=}_{line_id=}.pkl"
+            filename = (
+                f"river_profiles_from_bathymetry\\points_with_line_{scenario_id.value}_{group_id=}_{line_id=}.pkl"
+            )
             with open(filename, "wb") as dump_file:
                 pickle.dump(ordered_gps_points_on_profile_line, dump_file)
 
-            plot_river_profile(
+            plot_river_profile_with_tin(
                 ordered_gps_points_on_profile_line,
                 f"river_profiles_from_bathymetry\\profile{scenario_id.value}_{group_id=}_{line_id=}.html",
                 tin_nr,
+                scenario_id,
             )
 
         # Project points from each segment onto the line:
@@ -276,67 +287,33 @@ def main():
         xaxis=dict(title="Difference_Bathy_GPS"),
         yaxis=dict(title="n"),
     )
-    fig.show()
-    print(prepared_gps_points_with_elevation[f"{scenario_id.value}-GPS"].mean())
+    fig.write_html(
+        f"river_profiles_from_bathymetry\\histogram_of_difference_GPS_elevation_and_modelled_elevation_{scenario_id.value}.html"
+    )
+    prepared_gps_points_with_elevation[f"{scenario_id.value}-GPS"].mean()
 
-    prepared_gps_points_with_elevation["water_depth_TIN"] = (
-            prepared_gps_points_with_elevation[f"z_{tin_nr}"] - prepared_gps_points_with_elevation["z_raster"]
-    )
-    prepared_gps_points_with_elevation["difference_bed_elevation"] = (
-            prepared_gps_points_with_elevation["z_raster"] - prepared_gps_points_with_elevation["H"]
-    )
-    print(
-        "mean difference between bed elevation modelled vs transect:",
-        prepared_gps_points_with_elevation["difference_bed_elevation"].mean(),
-    )
-    prepared_gps_points_with_elevation["difference_GPS_TIN"] = (
-            prepared_gps_points_with_elevation["water_depth_TIN"] - prepared_gps_points_with_elevation["WT_m_"]
-    )
-    print(
-        "mean difference between prepared GPS points and TIN elevation of the water surface:",
-        prepared_gps_points_with_elevation["difference_GPS_TIN"].mean(),
-    )
-    print("statistics modelled water depth:", prepared_gps_points_with_elevation["water_depth_TIN"].describe())
-    print("statistics measured water depth:", prepared_gps_points_with_elevation["WT_m_"].describe())
+    fit_a_regression_line_to_modelled_and_simulated_elevations(prepared_gps_points_with_elevation, scenario_id)
 
-    fig = go.Figure()
-    fig.add_trace(
-        go.Histogram(
-            x=prepared_gps_points_with_elevation["water_depth_TIN"],
-        )
-    )
-    fig.update_layout(
-        xaxis=dict(title="water_depth_TIN"),
-        yaxis=dict(title="n"),
-    )
-    fig.show()
 
-    fig = go.Figure()
-    fig.add_trace(
-        go.Scatter(
-            x=prepared_gps_points_with_elevation["WT_m_"].values,
-            y=prepared_gps_points_with_elevation["water_depth_TIN"].values,
-            name=f"WT_m_ vs water_depth_TIN",
-            mode="markers",
-        )
-    )
-    fig.show()
-    prepared_gps_points_with_elevation.to_file("river_profiles_from_bathymetry\\points_with_water_depth.shp")
-
+def fit_a_regression_line_to_modelled_and_simulated_elevations(
+    prepared_gps_points_with_elevation, scenario_id: BeforeOrAfterFloodScenario
+):
     regression_bed_elevation = statsmodels.regression.linear_model.OLS(
-        prepared_gps_points_with_elevation["z_raster"], prepared_gps_points_with_elevation["H"]
+        prepared_gps_points_with_elevation[create_z_column_name(scenario_id)], prepared_gps_points_with_elevation["H"]
     )
     res = regression_bed_elevation.fit()
     print(res.summary())
 
 
-def plot_river_profile(ordered_gps_points_on_profile_line, filename: str, tin_nr: str):
+def plot_river_profile_with_tin(
+    ordered_gps_points_on_profile_line, filename: str, tin_nr: str, scenario_id: BeforeOrAfterFloodScenario
+):
     figure = go.Figure()
     figure.add_trace(
         go.Scatter(
             x=ordered_gps_points_on_profile_line.projected_gps_points["distance"].values,
-            y=ordered_gps_points_on_profile_line.projected_gps_points["z_raster"].values,
-            name="z_raster",
+            y=ordered_gps_points_on_profile_line.projected_gps_points[create_z_column_name(scenario_id)].values,
+            name=create_z_column_name(scenario_id),
             mode="lines+markers",
         )
     )
