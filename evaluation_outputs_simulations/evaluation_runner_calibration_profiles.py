@@ -18,21 +18,21 @@ def load_data_from_simulations():
     path_to_bottom_elevation = "C:\\Users\\nflue\\Documents\\Masterarbeit\\02_Data\\04_Model_220309\\04_Model\\04_export_files\\06_test_run_hw20_new_mesh\\discharge_file@hydrograph_continue_HW20_plus2_5pc.txt$default_friction@35.0$end@1000\\evaluation\\bottom_elevation.shp"
     path_to_hydraulic_state = "C:\\Users\\nflue\\Documents\\Masterarbeit\\02_Data\\04_Model_220309\\04_Model\\04_export_files\\06_test_run_hw20_new_mesh\\discharge_file@hydrograph_continue_HW20_plus2_5pc.txt$default_friction@35.0$end@1000\\evaluation\\hydraulic_state.shp"
     path_to_flow_velocity = "C:\\Users\\nflue\\Documents\\Masterarbeit\\02_Data\\04_Model_220309\\04_Model\\04_export_files\\06_test_run_hw20_new_mesh\\discharge_file@hydrograph_continue_HW20_plus2_5pc.txt$default_friction@35.0$end@1000\\evaluation\\flow_velocity_abs.shp"
+
+    bottom_elevation = load_data_with_crs_2056(path_to_bottom_elevation)
+    hydraulic_state = load_data_with_crs_2056(path_to_hydraulic_state)
+    flow_velocity = load_data_with_crs_2056(path_to_flow_velocity)
+    return bottom_elevation, flow_velocity, hydraulic_state
+
+
+def main():
+    bottom_elevation, flow_velocity, hydraulic_state = load_data_from_simulations()
     path_to_gps_points_bf20 = (
         r"C:\\Users\\nflue\\Documents\\Masterarbeit\\02_Data\\03_Bathymetry\\BF2020\\GPS_transects_BF2020_selection.shp"
     )
     gps_points_bf20 = load_data_with_crs_2056(path_to_gps_points_bf20)
-    bottom_elevation = load_data_with_crs_2056(path_to_bottom_elevation)
-    hydraulic_state = load_data_with_crs_2056(path_to_hydraulic_state)
-    flow_velocity = load_data_with_crs_2056(path_to_flow_velocity)
-    return bottom_elevation, flow_velocity, gps_points_bf20, hydraulic_state
-
-
-def main():
-    bottom_elevation, flow_velocity, gps_points_bf20, hydraulic_state = load_data_from_simulations()
 
     mesh_with_all_results = create_summarising_mesh_with_all_results(bottom_elevation, flow_velocity, hydraulic_state)
-
 
     simulated_water_depth = []
     for index, point in tqdm(enumerate(gps_points_bf20.geometry)):
@@ -45,6 +45,10 @@ def main():
     gps_points_bf20["sim_wd_t0"] = simulated_water_depth
 
     create_histogram_with_mesh_values(gps_points_bf20, "sim_wd_t0")
+    gps_points_bf20["wd_sim_gps"] = gps_points_bf20["sim_wd_t0"] - gps_points_bf20["WT_m_"]
+    print("mean deviation simulated water depth vs gps water depth is:", gps_points_bf20["wd_sim_gps"].mean())
+    create_histogram_with_mesh_values(gps_points_bf20, "wd_sim_gps")
+
 
     flood_scenario = BeforeOrAfterFloodScenario.bf_2020
     if flood_scenario == BeforeOrAfterFloodScenario.bf_2020:
@@ -56,7 +60,7 @@ def main():
     transect_lines_and_points = extract_specified_column_values_from_results_file(
         columns_to_lookup, mesh_with_all_results, flood_scenario
     )
-    print(transect_lines_and_points)
+
     for i, transect_line_with_points in enumerate(transect_lines_and_points):
         if flood_scenario == BeforeOrAfterFloodScenario.bf_2020:
             plot_river_profile_from_GPS_vs_simulated_data(
