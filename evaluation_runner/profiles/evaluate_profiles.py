@@ -49,7 +49,7 @@ def extract_specified_column_values_from_results_file(
 
 
 def create_histogram_with_mesh_values(
-    gps_points: gpd.GeoDataFrame, column_to_make_histogram_from: str, flood_scenario: BeforeOrAfterFloodScenario
+    gps_points: gpd.GeoDataFrame, column_to_make_histogram_from: str, flood_scenario: BeforeOrAfterFloodScenario, experiment_id: str
 ):
     fig = go.Figure()
     fig.add_trace(go.Histogram(x=gps_points[column_to_make_histogram_from]))
@@ -57,7 +57,7 @@ def create_histogram_with_mesh_values(
         xaxis=dict(title=f"{column_to_make_histogram_from}"),
         yaxis=dict(title="n"),
     )
-    fig.write_html(f"out\\histogram_{column_to_make_histogram_from}_{flood_scenario}.html")
+    fig.write_html(f"out\\histogram_{column_to_make_histogram_from}_{flood_scenario}_{experiment_id}.html")
 
 
 def plot_river_profile_from_gps_vs_simulated_data(

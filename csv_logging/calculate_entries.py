@@ -12,7 +12,7 @@ from evaluation_runner.analysis.three_dimensional import (
     calculate_ratio_of_eroded_area_sim,
     calculate_ratio_of_deposited_area_sim,
     calculate_ratio_of_identical_change,
-    calculate_ratio_of_different_change,
+    calculate_ratio_of_different_change, calculate_eroded_volume, calculate_deposited_volume,
 )
 from misc.dataclasses_for_evaluations import ColumnNamePair
 from statistical_formulas.formulas_goodness_of_fit import (
@@ -114,4 +114,6 @@ def goodness_of_fit_for_three_d_analysis(
         ratio_of_deposited_area_sim=calculate_ratio_of_deposited_area_sim(union_of_dod_and_simulated_dz_mesh),
         ratio_of_identical_change=calculate_ratio_of_identical_change(union_of_dod_and_simulated_dz_mesh),
         ratio_of_different_change=calculate_ratio_of_different_change(union_of_dod_and_simulated_dz_mesh),
+        eroded_volume_sim=calculate_eroded_volume(union_of_dod_and_simulated_dz_mesh),
+        deposited_volume_sim=calculate_deposited_volume(union_of_dod_and_simulated_dz_mesh),
     )

@@ -3,7 +3,6 @@ import os
 from typing import NamedTuple
 
 import pandas as pd
-import plotly.express as px
 from geopandas import GeoDataFrame
 from tqdm import tqdm
 
@@ -45,14 +44,14 @@ def get_json_with_all_result_paths(path_to_all_experiments_to_evaluate: str) -> 
 
 
 def evaluate_simulation_on_given_points(
-    path_to_all_experiments_to_evaluate: str,
-    evaluation_points: GeoDataFrame,
-    path_to_mesh: str,
-    mapping: dict,
-    flood_scenario: BeforeOrAfterFloodScenario,
-    path_to_dod_as_polygon: str,
-    paths_to_polygon_as_area_of_interest: tuple[str, ...],
-    path_to_folder_containing_points_with_lines: str,
+        path_to_all_experiments_to_evaluate: str,
+        evaluation_points: GeoDataFrame,
+        path_to_mesh: str,
+        mapping: dict,
+        flood_scenario: BeforeOrAfterFloodScenario,
+        path_to_dod_as_polygon: str,
+        paths_to_polygon_as_area_of_interest: tuple[str, ...],
+        path_to_folder_containing_points_with_lines: str,
 ):
     logger_goodness_of_fit_for_bottom_elevation = CSVLogger(GoodnessOfFitForInitialBottomElevation)
     logger_goodness_of_fit_for_water_depth = CSVLogger(GoodnessOfFitForInitialWaterDepth)
@@ -81,16 +80,22 @@ def evaluate_simulation_on_given_points(
                 list(mapping.keys()), summarising_mesh, points=evaluation_points.copy(deep=True)
             )
 
+            logger_triple = calculate_and_log_statistics_for_gps_points(
+                renamed_updated_gps_points, logger_triple, experiment_id=experiment_id, flood_scenario=flood_scenario
+            )
+
+            write_logs_for_gps_points(
+                logger_triple,
+                flood_scenario=flood_scenario,
+            )
+
+        if do_profiles := False:
             evaluate_points_along_profiles(
                 mesh_with_all_results=summarising_mesh,
                 flood_scenario=flood_scenario,
                 path_to_folder_containing_points_with_line=path_to_folder_containing_points_with_lines,
                 columns_to_lookup=list(mapping.keys()),
                 experiment_id=experiment_id,
-            )
-
-            logger_triple = calculate_and_log_statistics_for_gps_points(
-                renamed_updated_gps_points, logger_triple, experiment_id=experiment_id, flood_scenario=flood_scenario
             )
 
         if do_polygons := True:
@@ -122,13 +127,11 @@ def evaluate_simulation_on_given_points(
                 experiment_id=experiment_id,
                 polygon_name="-".join(all_polygons.keys()),
             )
-            clipped_mesh.to_file(f"out\\polygons_elevation_change_{experiment_id}.shp")
+            #clipped_mesh.to_file(f"out\\polygons_elevation_change_{experiment_id}.shp")
 
-    write_logs(
-        logger_triple,
-        flood_scenario=flood_scenario,
-        logger_goodness_of_fit_for_three_d_evaluation=logger_goodness_of_fit_for_three_d_evaluation,
-    )
+            write_log_for_3d_evaluation(
+                logger_goodness_of_fit_for_three_d_evaluation=logger_goodness_of_fit_for_three_d_evaluation,
+                flood_scenario=flood_scenario)
 
 
 class GpsPointsLoggerTriple(NamedTuple):
@@ -138,10 +141,10 @@ class GpsPointsLoggerTriple(NamedTuple):
 
 
 def calculate_and_log_3d_statistics_for_polygons(
-    logger_goodness_of_fit_for_three_d_evaluation: CSVLogger,
-    union_of_dod_and_simulated_dz_mesh: GeoDataFrame,
-    experiment_id: str,
-    polygon_name,
+        logger_goodness_of_fit_for_three_d_evaluation: CSVLogger,
+        union_of_dod_and_simulated_dz_mesh: GeoDataFrame,
+        experiment_id: str,
+        polygon_name,
 ) -> CSVLogger:
     logger_goodness_of_fit_for_three_d_evaluation.add_entry_to_log(
         goodness_of_fit_for_three_d_analysis(union_of_dod_and_simulated_dz_mesh, experiment_id, polygon_name)
@@ -150,7 +153,7 @@ def calculate_and_log_3d_statistics_for_polygons(
 
 
 def calculate_and_log_statistics_for_gps_points(
-    renamed_updated_gps_points: GeoDataFrame, logger_triple: GpsPointsLoggerTriple, experiment_id, flood_scenario
+        renamed_updated_gps_points: GeoDataFrame, logger_triple: GpsPointsLoggerTriple, experiment_id, flood_scenario
 ) -> GpsPointsLoggerTriple:
     renamed_updated_gps_points["wd_sim_gps"] = renamed_updated_gps_points["wd"] - renamed_updated_gps_points["WT_m_"]
     gps_points_with_velocity: GeoDataFrame = (
@@ -158,8 +161,8 @@ def calculate_and_log_statistics_for_gps_points(
     ).copy(deep=True)
     gps_points_with_velocity["v_sim_gps"] = gps_points_with_velocity["v"] - gps_points_with_velocity["Vel__m_s_"]
 
-    create_histogram_with_mesh_values(renamed_updated_gps_points, "wd_sim_gps", flood_scenario=flood_scenario)
-    create_histogram_with_mesh_values(gps_points_with_velocity, "v_sim_gps", flood_scenario=flood_scenario)
+    create_histogram_with_mesh_values(renamed_updated_gps_points, "wd_sim_gps", flood_scenario=flood_scenario, experiment_id=experiment_id)
+    create_histogram_with_mesh_values(gps_points_with_velocity, "v_sim_gps", flood_scenario=flood_scenario, experiment_id=experiment_id)
 
     logger_triple.logger_goodness_of_fit_for_water_depth.add_entry_to_log(
         goodness_of_fit_for_water_depth(renamed_updated_gps_points, experiment_id=experiment_id)
@@ -173,10 +176,9 @@ def calculate_and_log_statistics_for_gps_points(
     return logger_triple
 
 
-def write_logs(
-    logger_triple: GpsPointsLoggerTriple,
-    flood_scenario: BeforeOrAfterFloodScenario,
-    logger_goodness_of_fit_for_three_d_evaluation: CSVLogger,
+def write_logs_for_gps_points(
+        logger_triple: GpsPointsLoggerTriple,
+        flood_scenario: BeforeOrAfterFloodScenario,
 ) -> None:
     logger_triple.logger_goodness_of_fit_for_velocity.write_logs_as_csv_to_file(
         f"log_goodness_of_fit_{flood_scenario}_velocities.csv"
@@ -187,15 +189,17 @@ def write_logs(
     logger_triple.logger_goodness_of_fit_for_bottom_elevation.write_logs_as_csv_to_file(
         f"log_goodness_of_fit_{flood_scenario}_bottom_ele.csv"
     )
+
+
+def write_log_for_3d_evaluation(logger_goodness_of_fit_for_three_d_evaluation: CSVLogger,
+                                flood_scenario: BeforeOrAfterFloodScenario) -> None:
     logger_goodness_of_fit_for_three_d_evaluation.write_logs_as_csv_to_file(
-        f"log_three_d_statistics_{flood_scenario}.csv"
-    )
+        f"log_three_d_statistics_{flood_scenario}.csv")
 
 
 def main():
     flood_scenario = BeforeOrAfterFloodScenario.af_2020
 
-    paths_to_json_with_experiment_paths = r"C:\Users\nflue\Desktop\experiments\experiments\paths_to_experiments.json"
     path_to_gps_points = create_paths(flood_scenario).path_to_gps_points
     path_to_mesh = r"C:\Users\nflue\Documents\Masterarbeit\02_Data\04_Model_220309\04_Model\01_input_data\BF2020_Mesh\new_mesh_all_inputs\bathymetry_and_mesh_BF2020_computational-mesh.2dm"
     paths_to_polygon_as_area_of_interest = (
@@ -209,11 +213,13 @@ def main():
     path_to_dod_as_polygon = "C:\\Users\\nflue\\Documents\\Masterarbeit\\02_Data\\03_Bathymetry\\DoDs\\dod_v2\\dod_af20_min_bf20_reclass_as_polygon_v2.shp"
     path_to_folder_containing_points_with_lines = "C:\\Users\\nflue\\Documents\\Masterarbeit\\03_Projects\\MasterThesis\\BasementPreparation\\river_profiles_from_bathymetry"
 
+    paths_to_json_with_experiment_paths = r"C:\Users\nflue\Desktop\experiments\experiments\runs_with_kst30_and_40_and_grain0.05_and_0.082\paths_to_experiments.json"
+
     if flood_scenario == BeforeOrAfterFloodScenario.bf_2020:
         mapping = {"bot_ele": "bot_ele_t0", "wse": "wse_t0", "v": "v_t0", "wd": "wd_t0"}
 
     elif flood_scenario == BeforeOrAfterFloodScenario.af_2020:
-        mapping = {"bot_ele": "bot_ele_end", "wse": "wse_end", "v": "v_end", "wd": "wd_end", "delta_z": "delta_z"}
+        mapping = {"bot_ele": "bot_ele_end", "wse": "wse_end", "v": "v_end", "wd": "wd_end", "delta_z": "delta_z", "volume": "volume"}
     else:
         raise NotImplementedError
 

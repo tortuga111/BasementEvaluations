@@ -108,3 +108,5 @@ class GoodnessOfFitFor3dEvaluation(BaseLogEntry):
     ratio_of_deposited_area_sim: float
     ratio_of_identical_change: float
     ratio_of_different_change: float
+    eroded_volume_sim: float
+    deposited_volume_sim: float

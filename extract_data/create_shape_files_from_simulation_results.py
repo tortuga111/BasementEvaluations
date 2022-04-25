@@ -77,10 +77,10 @@ def process_h5_files_to_shape_files(
 
     return rename_columns_to_represent_time_step(
         SimulationResultsShapes(
-            bottom_elevation=bottom_elevation,
-            hydraulic_state=hydraulic_state,
-            flow_velocity=flow_velocity,
-            absolute_flow_velocity=absolute_flow_velocity,
+            bottom_elevation=bottom_elevation.copy(),
+            hydraulic_state=hydraulic_state.copy(),
+            flow_velocity=flow_velocity.copy(),
+            absolute_flow_velocity=absolute_flow_velocity.copy(),
         ),
         time_step,
     )
