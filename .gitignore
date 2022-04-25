@@ -227,3 +227,4 @@ cython_debug/
 *.tif
 *.ovr
 *.xml
+*.csv
