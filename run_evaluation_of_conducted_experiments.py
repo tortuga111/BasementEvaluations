@@ -52,6 +52,7 @@ def evaluate_simulation_on_given_points(
         path_to_dod_as_polygon: str,
         paths_to_polygon_as_area_of_interest: tuple[str, ...],
         path_to_folder_containing_points_with_lines: str,
+        simulation_time_in_seconds: int,
 ):
     logger_goodness_of_fit_for_bottom_elevation = CSVLogger(GoodnessOfFitForInitialBottomElevation)
     logger_goodness_of_fit_for_water_depth = CSVLogger(GoodnessOfFitForInitialWaterDepth)
@@ -65,7 +66,8 @@ def evaluate_simulation_on_given_points(
     )
 
     all_paths_to_experiment_results = get_json_with_all_result_paths(path_to_all_experiments_to_evaluate)
-    state_to_name_in_shape_file_mapping = create_default_state_to_name_in_shape_file_mapping()
+    state_to_name_in_shape_file_mapping = create_default_state_to_name_in_shape_file_mapping(
+        simulation_time_in_seconds=simulation_time_in_seconds)
 
     # mapping = {"bot_ele": "bot_ele_t0", "wse": "wse_t0", "v": "v_t0", "wd": "wd_t0"}
     for path in all_paths_to_experiment_results:
@@ -89,7 +91,7 @@ def evaluate_simulation_on_given_points(
                 flood_scenario=flood_scenario,
             )
 
-        if do_profiles := False:
+        if do_profiles := True:
             evaluate_points_along_profiles(
                 mesh_with_all_results=summarising_mesh,
                 flood_scenario=flood_scenario,
@@ -109,7 +111,7 @@ def evaluate_simulation_on_given_points(
                 masking_polygons_for_evaluation = load_data_with_crs_2056(polygon_path)
                 polygon_name = os.path.split(polygon_path)[-1].split(".")[0]
                 clipped_mesh = clip_mesh_with_polygons(
-                    union_of_dod_and_simulated_dz_mesh, masking_polygons_for_evaluation
+                    union_of_dod_and_simulated_dz_mesh, masking_polygons_for_evaluation, experiment_id=experiment_id
                 )
                 logger_goodness_of_fit_for_three_d_evaluation = calculate_and_log_3d_statistics_for_polygons(
                     logger_goodness_of_fit_for_three_d_evaluation,
@@ -120,18 +122,25 @@ def evaluate_simulation_on_given_points(
                 all_polygons[polygon_name] = masking_polygons_for_evaluation
 
             all_masking_polygons = pd.concat(all_polygons.values())
-            clipped_mesh = clip_mesh_with_polygons(union_of_dod_and_simulated_dz_mesh, all_masking_polygons)
+            clipped_mesh = clip_mesh_with_polygons(union_of_dod_and_simulated_dz_mesh, all_masking_polygons,
+                                                   experiment_id)
             logger_goodness_of_fit_for_three_d_evaluation = calculate_and_log_3d_statistics_for_polygons(
                 logger_goodness_of_fit_for_three_d_evaluation,
                 union_of_dod_and_simulated_dz_mesh=clipped_mesh,
                 experiment_id=experiment_id,
                 polygon_name="-".join(all_polygons.keys()),
             )
-            #clipped_mesh.to_file(f"out\\polygons_elevation_change_{experiment_id}.shp")
+            file_path = f"out\\polygons\\{flood_scenario.value}_{experiment_id}\\"
+            if not os.path.exists(file_path):
+                os.mkdir(file_path)
+
+            file_name = "elevation_change.shp"
+            clipped_mesh.to_file(file_path + file_name)
 
             write_log_for_3d_evaluation(
                 logger_goodness_of_fit_for_three_d_evaluation=logger_goodness_of_fit_for_three_d_evaluation,
-                flood_scenario=flood_scenario)
+                flood_scenario=flood_scenario,
+            )
 
 
 class GpsPointsLoggerTriple(NamedTuple):
@@ -161,8 +170,12 @@ def calculate_and_log_statistics_for_gps_points(
     ).copy(deep=True)
     gps_points_with_velocity["v_sim_gps"] = gps_points_with_velocity["v"] - gps_points_with_velocity["Vel__m_s_"]
 
-    create_histogram_with_mesh_values(renamed_updated_gps_points, "wd_sim_gps", flood_scenario=flood_scenario, experiment_id=experiment_id)
-    create_histogram_with_mesh_values(gps_points_with_velocity, "v_sim_gps", flood_scenario=flood_scenario, experiment_id=experiment_id)
+    create_histogram_with_mesh_values(
+        renamed_updated_gps_points, "wd_sim_gps", flood_scenario=flood_scenario, experiment_id=experiment_id
+    )
+    create_histogram_with_mesh_values(
+        gps_points_with_velocity, "v_sim_gps", flood_scenario=flood_scenario, experiment_id=experiment_id
+    )
 
     logger_triple.logger_goodness_of_fit_for_water_depth.add_entry_to_log(
         goodness_of_fit_for_water_depth(renamed_updated_gps_points, experiment_id=experiment_id)
@@ -191,17 +204,21 @@ def write_logs_for_gps_points(
     )
 
 
-def write_log_for_3d_evaluation(logger_goodness_of_fit_for_three_d_evaluation: CSVLogger,
-                                flood_scenario: BeforeOrAfterFloodScenario) -> None:
+def write_log_for_3d_evaluation(
+        logger_goodness_of_fit_for_three_d_evaluation: CSVLogger, flood_scenario: BeforeOrAfterFloodScenario
+) -> None:
     logger_goodness_of_fit_for_three_d_evaluation.write_logs_as_csv_to_file(
-        f"log_three_d_statistics_{flood_scenario}.csv")
+        f"log_three_d_statistics_{flood_scenario}.csv"
+    )
 
 
 def main():
     flood_scenario = BeforeOrAfterFloodScenario.af_2020
+    simulation_time_in_seconds = 9000
 
     path_to_gps_points = create_paths(flood_scenario).path_to_gps_points
-    path_to_mesh = r"C:\Users\nflue\Documents\Masterarbeit\02_Data\04_Model_220309\04_Model\01_input_data\BF2020_Mesh\new_mesh_all_inputs\bathymetry_and_mesh_BF2020_computational-mesh.2dm"
+    #old mesh: path_to_mesh = r"C:\Users\nflue\Documents\Masterarbeit\02_Data\04_Model_220309\04_Model\01_input_data_old\BF2020_Mesh\new_mesh_all_inputs\bathymetry_and_mesh_BF2020_computational-mesh.2dm"
+    path_to_mesh = r"C:\Users\nflue\Documents\Masterarbeit\02_Data\04_Model_220309\04_Model\01_input_data_new_def\BF2020_Mesh\new_mesh_all_inputs\Project1_computational-mesh_new_regions.2dm"
     paths_to_polygon_as_area_of_interest = (
         "C:\\Users\\nflue\\Documents\\Masterarbeit\\02_Data\\05_evaluation\\areas_to_compare_dod_bf_and_af\\side_channel_island.shp",
         "C:\\Users\\nflue\\Documents\\Masterarbeit\\02_Data\\05_evaluation\\areas_to_compare_dod_bf_and_af\\main_channel_island.shp",
@@ -213,13 +230,20 @@ def main():
     path_to_dod_as_polygon = "C:\\Users\\nflue\\Documents\\Masterarbeit\\02_Data\\03_Bathymetry\\DoDs\\dod_v2\\dod_af20_min_bf20_reclass_as_polygon_v2.shp"
     path_to_folder_containing_points_with_lines = "C:\\Users\\nflue\\Documents\\Masterarbeit\\03_Projects\\MasterThesis\\BasementPreparation\\river_profiles_from_bathymetry"
 
-    paths_to_json_with_experiment_paths = r"C:\Users\nflue\Desktop\experiments\experiments\runs_with_kst30_and_40_and_grain0.05_and_0.082\paths_to_experiments.json"
+    paths_to_json_with_experiment_paths = r"C:\Users\nflue\Desktop\experiments\experiments\experiment_with_changed_lateral_slope_dtime_300\paths_to_experiments.json"
 
     if flood_scenario == BeforeOrAfterFloodScenario.bf_2020:
         mapping = {"bot_ele": "bot_ele_t0", "wse": "wse_t0", "v": "v_t0", "wd": "wd_t0"}
 
     elif flood_scenario == BeforeOrAfterFloodScenario.af_2020:
-        mapping = {"bot_ele": "bot_ele_end", "wse": "wse_end", "v": "v_end", "wd": "wd_end", "delta_z": "delta_z", "volume": "volume"}
+        mapping = {
+            "bot_ele": "bot_ele_end",
+            "wse": "wse_end",
+            "v": "v_end",
+            "wd": "wd_end",
+            "delta_z": "delta_z",
+            "volume": "volume",
+        }
     else:
         raise NotImplementedError
 
@@ -232,6 +256,7 @@ def main():
         paths_to_polygon_as_area_of_interest=paths_to_polygon_as_area_of_interest,
         path_to_dod_as_polygon=path_to_dod_as_polygon,
         path_to_folder_containing_points_with_lines=path_to_folder_containing_points_with_lines,
+        simulation_time_in_seconds=simulation_time_in_seconds
     )
 
 

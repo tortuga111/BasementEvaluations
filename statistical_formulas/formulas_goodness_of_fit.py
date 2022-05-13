@@ -64,10 +64,13 @@ def calculate_index_of_agreement(point_dataset: gpd.GeoDataFrame, column_names: 
 
 
 def calculate_water_depth_variability(water_depth_point_variability: gpd.GeoDataFrame):
-    return water_depth_point_variability.std()/water_depth_point_variability.mean()*100
+    return water_depth_point_variability.std() / water_depth_point_variability.mean() * 100
 
 
-def calculate_hydromorphological_index_of_diversity(velocity_point_data_set: gpd.GeoDataFrame,
-                                                    water_depth_point_data_set: gpd.GeoDataFrame):
-    return np.multiply(((1 + velocity_point_data_set.std() / velocity_point_data_set.mean()) ** 2), ((
-                1 + water_depth_point_data_set.std() / water_depth_point_data_set.mean()) ** 2))
+def calculate_hydromorphological_index_of_diversity(
+    velocity_point_data_set: gpd.GeoDataFrame, water_depth_point_data_set: gpd.GeoDataFrame
+):
+    return np.multiply(
+        ((1 + velocity_point_data_set.std() / velocity_point_data_set.mean()) ** 2),
+        ((1 + water_depth_point_data_set.std() / water_depth_point_data_set.mean()) ** 2),
+    )

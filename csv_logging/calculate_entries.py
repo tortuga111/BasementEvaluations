@@ -12,7 +12,9 @@ from evaluation_runner.analysis.three_dimensional import (
     calculate_ratio_of_eroded_area_sim,
     calculate_ratio_of_deposited_area_sim,
     calculate_ratio_of_identical_change,
-    calculate_ratio_of_different_change, calculate_eroded_volume, calculate_deposited_volume,
+    calculate_ratio_of_different_change,
+    calculate_eroded_volume,
+    calculate_deposited_volume,
 )
 from misc.dataclasses_for_evaluations import ColumnNamePair
 from statistical_formulas.formulas_goodness_of_fit import (

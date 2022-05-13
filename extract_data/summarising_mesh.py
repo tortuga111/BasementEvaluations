@@ -16,14 +16,14 @@ class StateToNameInShapeFileMapping(NamedTuple):
     flow_velocity_t_end: str = "3-Value"
 
 
-def create_default_state_to_name_in_shape_file_mapping() -> StateToNameInShapeFileMapping:
+def create_default_state_to_name_in_shape_file_mapping(simulation_time_in_seconds: int) -> StateToNameInShapeFileMapping:
     return StateToNameInShapeFileMapping(
         hydraulic_state_t_0="0-Value",
         bottom_elevation_t_0="0-BottomEl",
-        hydraulic_state_t_end="114900-Value",
-        bottom_elevation_t_end="114900-BottomEl",
+        hydraulic_state_t_end=f"{simulation_time_in_seconds}-Value",
+        bottom_elevation_t_end=f"{simulation_time_in_seconds}-BottomEl",
         flow_velocity_t_0="0-Value",
-        flow_velocity_t_end="114900-Value",
+        flow_velocity_t_end=f"{simulation_time_in_seconds}-Value",
     )
 
 
@@ -52,7 +52,7 @@ def create_summarising_mesh_with_all_results(
         )
         mesh_with_all_results["v_t0"] = absolute_flow_velocity[mapping.flow_velocity_t_0]
         mesh_with_all_results["wse_t0"] = hydraulic_state[mapping.hydraulic_state_t_0]
-        mesh_with_all_results["bot_ele_t0"] = bottom_elevation[mapping.bottom_elevation_t_end]
+        mesh_with_all_results["bot_ele_t0"] = bottom_elevation[mapping.bottom_elevation_t_0]
         # after flood
         mesh_with_all_results["wd_end"] = (
             hydraulic_state[mapping.hydraulic_state_t_end] - bottom_elevation[mapping.bottom_elevation_t_end]

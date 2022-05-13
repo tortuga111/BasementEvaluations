@@ -12,9 +12,11 @@ def write_all_paths_to_a_json(path: str, json_file_name: str) -> None:
 
 
 def main():
-    path_to_experiment_root_folder = r"C:\Users\nflue\Desktop\experiments\experiments\runs_with_kst30_and_40_and_grain0.05_and_0.082"
+    path_to_experiment_root_folder = (
+        r"C:\Users\nflue\Desktop\experiments\experiments\initial_run_new_mesh_with_hydrogr"
+    )
     write_all_paths_to_a_json(path_to_experiment_root_folder, "paths_to_experiments.json")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

@@ -7,21 +7,8 @@ from utils.loading import load_data_with_crs_2056
 
 
 def main():
-    path_to_file = (
-        "C:\\Users\\nflue\\Documents\\Masterarbeit\\03_Projects\\MasterThesis\\BasementEvaluations\\out\\polygons_elevation_change_discharge_file@Hydrograph_HW2020_115000.txt$end@115000$fixed_bed@-1$grain_diameter@0.05$kst_regions@30.shp"
-    )
+    path_to_file = "C:\\Users\\nflue\\Documents\\Masterarbeit\\03_Projects\\MasterThesis\\BasementEvaluations\\out\\polygons\\elevation_change_discharge_file@Hydrograph_HW2020_115000.txt$end@111900$kst_regions@161027236$fixed_bed@82647707.shp"
     shape_file = load_data_with_crs_2056(path_to_file)
-
-    m = shape_file.explore(
-        column="comparison",
-        tooltip="comparison",
-        popup=True,
-        cmap="Set1",
-        crs="EPSG2056",
-        tiles=None,
-    )
-
-    m.save("map_test.html")
 
     fig, ax = plt.subplots(1, 1)
     divider = make_axes_locatable(ax)
@@ -30,22 +17,16 @@ def main():
         column="comparison",
         ax=ax,
         legend=True,
-        figsize=(15,10),
-        cmap='Set1',
+        figsize=(15, 10),
+        cmap="Set1",
     )
     plt.savefig("test.jpg")
 
     fig = make_subplots(rows=1, cols=2)
 
-    fig.add_trace(
-        go.Scatter(x=[1, 2, 3], y=[4, 5, 6]),
-        row=1, col=1
-    )
+    fig.add_trace(go.Scatter(x=[1, 2, 3], y=[4, 5, 6]), row=1, col=1)
 
-    fig.add_trace(
-        go.Scatter(x=[20, 30, 40], y=[50, 60, 70]),
-        row=1, col=2
-    )
+    fig.add_trace(go.Scatter(x=[20, 30, 40], y=[50, 60, 70]), row=1, col=2)
 
     fig.update_layout(height=600, width=800, title_text="Side By Side Subplots")
     fig.write_image("fig1test.png")
