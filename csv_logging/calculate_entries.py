@@ -13,8 +13,8 @@ from evaluation_runner.analysis.three_dimensional import (
     calculate_ratio_of_deposited_area_sim,
     calculate_ratio_of_identical_change,
     calculate_ratio_of_different_change,
-    calculate_eroded_volume,
-    calculate_deposited_volume,
+    calculate_eroded_volume_sim,
+    calculate_deposited_volume_sim, calculate_eroded_volume_dod, calculate_deposited_volume_dod,
 )
 from misc.dataclasses_for_evaluations import ColumnNamePair
 from statistical_formulas.formulas_goodness_of_fit import (
@@ -54,7 +54,7 @@ def goodness_of_fit_for_velocity(gps_points_with_velocity, experiment_id: str) -
 
 
 def goodness_of_fit_for_bottom_elevation(
-    updated_gps_points, experiment_id: str
+        updated_gps_points, experiment_id: str
 ) -> GoodnessOfFitForInitialBottomElevation:
     column_names_bottom_elevation = ColumnNamePair(observed="H", simulated="bot_ele")
     message_goodness_of_fit_initial_bottom_elevation = GoodnessOfFitForInitialBottomElevation(
@@ -105,7 +105,7 @@ def goodness_of_fit_for_water_depth(updated_gps_points, experiment_id: str) -> G
 
 
 def goodness_of_fit_for_three_d_analysis(
-    union_of_dod_and_simulated_dz_mesh: GeoDataFrame, experiment_id: str, polygon_name: str
+        union_of_dod_and_simulated_dz_mesh: GeoDataFrame, experiment_id: str, polygon_name: str
 ) -> GoodnessOfFitFor3dEvaluation:
     return GoodnessOfFitFor3dEvaluation(
         experiment_id=experiment_id,
@@ -116,6 +116,31 @@ def goodness_of_fit_for_three_d_analysis(
         ratio_of_deposited_area_sim=calculate_ratio_of_deposited_area_sim(union_of_dod_and_simulated_dz_mesh),
         ratio_of_identical_change=calculate_ratio_of_identical_change(union_of_dod_and_simulated_dz_mesh),
         ratio_of_different_change=calculate_ratio_of_different_change(union_of_dod_and_simulated_dz_mesh),
-        eroded_volume_sim=calculate_eroded_volume(union_of_dod_and_simulated_dz_mesh),
-        deposited_volume_sim=calculate_deposited_volume(union_of_dod_and_simulated_dz_mesh),
+        eroded_volume_sim=calculate_eroded_volume_sim(union_of_dod_and_simulated_dz_mesh),
+        deposited_volume_sim=calculate_deposited_volume_sim(union_of_dod_and_simulated_dz_mesh),
+        eroded_volume_dod=calculate_eroded_volume_dod(union_of_dod_and_simulated_dz_mesh),
+        deposited_volume_dod=calculate_deposited_volume_dod(union_of_dod_and_simulated_dz_mesh),
+        eroded_volume_absolute_error=abs(calculate_eroded_volume_sim(
+            union_of_dod_and_simulated_dz_mesh) - calculate_eroded_volume_dod(union_of_dod_and_simulated_dz_mesh)),
+        deposited_volume_absolute_error=abs(
+            calculate_deposited_volume_sim(union_of_dod_and_simulated_dz_mesh) - calculate_deposited_volume_dod(
+                union_of_dod_and_simulated_dz_mesh)),
+        eroded_volume_per_area_sim=calculate_eroded_volume_sim(union_of_dod_and_simulated_dz_mesh) / sum(
+            union_of_dod_and_simulated_dz_mesh
+                .area),
+        deposited_volume_per_area_sim=calculate_deposited_volume_sim(union_of_dod_and_simulated_dz_mesh) / sum(
+            union_of_dod_and_simulated_dz_mesh.area),
+        eroded_volume_per_area_dod=calculate_eroded_volume_dod(union_of_dod_and_simulated_dz_mesh) / sum(
+            union_of_dod_and_simulated_dz_mesh.area),
+        deposited_volume_per_area_dod=calculate_ratio_of_deposited_area_dod(union_of_dod_and_simulated_dz_mesh) / sum(
+            union_of_dod_and_simulated_dz_mesh.area),
+        eroded_volume_per_area_abs_error=(calculate_eroded_volume_sim(union_of_dod_and_simulated_dz_mesh) / sum(
+            union_of_dod_and_simulated_dz_mesh
+                .area)) - calculate_eroded_volume_dod(union_of_dod_and_simulated_dz_mesh) / sum(
+            union_of_dod_and_simulated_dz_mesh.area),
+        deposited_volume_per_area_abs_error=(calculate_deposited_volume_sim(union_of_dod_and_simulated_dz_mesh) / sum(
+            union_of_dod_and_simulated_dz_mesh.area)) - (calculate_ratio_of_deposited_area_dod(
+            union_of_dod_and_simulated_dz_mesh) / sum(
+            union_of_dod_and_simulated_dz_mesh.area)),
+
     )

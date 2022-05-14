@@ -110,3 +110,14 @@ class GoodnessOfFitFor3dEvaluation(BaseLogEntry):
     ratio_of_different_change: float
     eroded_volume_sim: float
     deposited_volume_sim: float
+    eroded_volume_dod: float
+    deposited_volume_dod: float
+    eroded_volume_absolute_error: float
+    deposited_volume_absolute_error: float
+    deposited_volume_absolute_error: float
+    eroded_volume_per_area_sim: float
+    deposited_volume_per_area_sim: float
+    eroded_volume_per_area_dod: float
+    deposited_volume_per_area_dod: float
+    eroded_volume_per_area_abs_error: float
+    deposited_volume_per_area_abs_error: float

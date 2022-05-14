@@ -77,7 +77,7 @@ def evaluate_simulation_on_given_points(
             resulting_geo_data_frames, state_to_name_in_shape_file_mapping
         ).rename(columns={v: k for k, v in mapping.items()})
 
-        if do_points := True:
+        if do_points := False:
             renamed_updated_gps_points = assign_requested_values_from_summarising_mesh_to_point(
                 list(mapping.keys()), summarising_mesh, points=evaluation_points.copy(deep=True)
             )
@@ -91,7 +91,7 @@ def evaluate_simulation_on_given_points(
                 flood_scenario=flood_scenario,
             )
 
-        if do_profiles := True:
+        if do_profiles := False:
             evaluate_points_along_profiles(
                 mesh_with_all_results=summarising_mesh,
                 flood_scenario=flood_scenario,
@@ -130,12 +130,12 @@ def evaluate_simulation_on_given_points(
                 experiment_id=experiment_id,
                 polygon_name="-".join(all_polygons.keys()),
             )
-            file_path = f"out\\polygons\\{flood_scenario.value}_{experiment_id}\\"
-            if not os.path.exists(file_path):
-                os.mkdir(file_path)
+            #file_path = f"out\\polygons\\{flood_scenario.value}_{experiment_id}\\"
+            #if not os.path.exists(file_path):
+            #    os.mkdir(file_path)
 
-            file_name = "elevation_change.shp"
-            clipped_mesh.to_file(file_path + file_name)
+            #file_name = "elevation_change.shp"
+            #clipped_mesh.to_file(file_path + file_name)
 
             write_log_for_3d_evaluation(
                 logger_goodness_of_fit_for_three_d_evaluation=logger_goodness_of_fit_for_three_d_evaluation,
@@ -214,11 +214,11 @@ def write_log_for_3d_evaluation(
 
 def main():
     flood_scenario = BeforeOrAfterFloodScenario.af_2020
-    simulation_time_in_seconds = 9000
+    simulation_time_in_seconds = 111900
 
     path_to_gps_points = create_paths(flood_scenario).path_to_gps_points
-    #old mesh: path_to_mesh = r"C:\Users\nflue\Documents\Masterarbeit\02_Data\04_Model_220309\04_Model\01_input_data_old\BF2020_Mesh\new_mesh_all_inputs\bathymetry_and_mesh_BF2020_computational-mesh.2dm"
-    path_to_mesh = r"C:\Users\nflue\Documents\Masterarbeit\02_Data\04_Model_220309\04_Model\01_input_data_new_def\BF2020_Mesh\new_mesh_all_inputs\Project1_computational-mesh_new_regions.2dm"
+    path_to_mesh = r"C:\Users\nflue\Documents\Masterarbeit\02_Data\04_Model_220309\04_Model\01_input_data_old\BF2020_Mesh\new_mesh_all_inputs\bathymetry_and_mesh_BF2020_computational-mesh.2dm"
+    #new path_to_mesh = r"C:\Users\nflue\Documents\Masterarbeit\02_Data\04_Model_220511\04_Model\01_input_data\BF2020_Mesh\new_mesh_all_inputs\Project1_computational-mesh.2dm"
     paths_to_polygon_as_area_of_interest = (
         "C:\\Users\\nflue\\Documents\\Masterarbeit\\02_Data\\05_evaluation\\areas_to_compare_dod_bf_and_af\\side_channel_island.shp",
         "C:\\Users\\nflue\\Documents\\Masterarbeit\\02_Data\\05_evaluation\\areas_to_compare_dod_bf_and_af\\main_channel_island.shp",
@@ -227,10 +227,10 @@ def main():
         "C:\\Users\\nflue\\Documents\\Masterarbeit\\02_Data\\05_evaluation\\areas_to_compare_dod_bf_and_af\\main_channel.shp",
         "C:\\Users\\nflue\\Documents\\Masterarbeit\\02_Data\\05_evaluation\\areas_to_compare_dod_bf_and_af\\gravel_bar.shp",
     )
-    path_to_dod_as_polygon = "C:\\Users\\nflue\\Documents\\Masterarbeit\\02_Data\\03_Bathymetry\\DoDs\\dod_v2\\dod_af20_min_bf20_reclass_as_polygon_v2.shp"
+    path_to_dod_as_polygon = "C:\\Users\\nflue\\Documents\\Masterarbeit\\02_Data\\03_Bathymetry\\DoDs\\dod_v2\\dod_as_polygon.shp"
     path_to_folder_containing_points_with_lines = "C:\\Users\\nflue\\Documents\\Masterarbeit\\03_Projects\\MasterThesis\\BasementPreparation\\river_profiles_from_bathymetry"
 
-    paths_to_json_with_experiment_paths = r"C:\Users\nflue\Desktop\experiments\experiments\experiment_with_changed_lateral_slope_dtime_300\paths_to_experiments.json"
+    paths_to_json_with_experiment_paths = r"C:\Users\nflue\Desktop\experiments\experiments_old_mesh_batch1\runs_with_kst30_and_35_and_grain0.05_and_0.082\paths_to_experiments.json"
 
     if flood_scenario == BeforeOrAfterFloodScenario.bf_2020:
         mapping = {"bot_ele": "bot_ele_t0", "wse": "wse_t0", "v": "v_t0", "wd": "wd_t0"}
@@ -242,7 +242,6 @@ def main():
             "v": "v_end",
             "wd": "wd_end",
             "delta_z": "delta_z",
-            "volume": "volume",
         }
     else:
         raise NotImplementedError

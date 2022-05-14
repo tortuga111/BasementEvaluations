@@ -63,7 +63,6 @@ def create_summarising_mesh_with_all_results(
         mesh_with_all_results["v_end"] = absolute_flow_velocity[mapping.flow_velocity_t_end]
         mesh_with_all_results["bot_ele_end"] = bottom_elevation[mapping.bottom_elevation_t_end]
         mesh_with_all_results["wse_end"] = hydraulic_state[mapping.hydraulic_state_t_end]
-        mesh_with_all_results["volume"] = mesh_with_all_results.area * mesh_with_all_results["delta_z"]
 
     except KeyError as key_error:
         print(f"Check the mapping in {mapping}, as you might have missed a column")
