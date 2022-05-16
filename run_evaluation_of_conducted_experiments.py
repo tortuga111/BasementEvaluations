@@ -10,7 +10,7 @@ from csv_logging.calculate_entries import (
     goodness_of_fit_for_bottom_elevation,
     goodness_of_fit_for_velocity,
     goodness_of_fit_for_water_depth,
-    goodness_of_fit_for_three_d_analysis,
+    goodness_of_fit_for_three_d_analysis, calculate_entries_for_shear_stress_log,
 )
 from csv_logging.csvlogger import (
     CSVLogger,
@@ -160,6 +160,10 @@ def calculate_and_log_3d_statistics_for_polygons(
     )
     return logger_goodness_of_fit_for_three_d_evaluation
 
+def calculate_and_log_shear_stress_statistics(logger_shear_stress: CSVLogger, mesh_with_all_results: GeoDataFrame) -> CSVLogger:
+    logger_shear_stress.add_entry_to_log(
+        calculate_entries_for_shear_stress_log()
+
 
 def calculate_and_log_statistics_for_gps_points(
         renamed_updated_gps_points: GeoDataFrame, logger_triple: GpsPointsLoggerTriple, experiment_id, flood_scenario
@@ -210,6 +214,10 @@ def write_log_for_3d_evaluation(
     logger_goodness_of_fit_for_three_d_evaluation.write_logs_as_csv_to_file(
         f"log_three_d_statistics_{flood_scenario}.csv"
     )
+
+def write_log_for_shear_stress(
+        logger_shear_stress: CSVLogger, flood_scenario: BeforeOrAfterFloodScenario) -> None:
+    logger_shear_stress.write_logs_as_csv_to_file("log_shear_stress.csv")
 
 
 def main():

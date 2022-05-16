@@ -121,3 +121,13 @@ class GoodnessOfFitFor3dEvaluation(BaseLogEntry):
     deposited_volume_per_area_dod: float
     eroded_volume_per_area_abs_error: float
     deposited_volume_per_area_abs_error: float
+
+
+@dataclass(frozen=True)
+class ShearStress(BaseLogEntry):
+    timestep: float
+    discharge: float
+    abs_area_critical_shear_stress: float
+    rel_area_critical_shear_stress: float
+    area_guenter_criterion: float
+    rel_area_guenter_criterion: float

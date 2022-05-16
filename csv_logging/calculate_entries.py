@@ -4,7 +4,7 @@ from csv_logging.csvlogger import (
     GoodnessOfFitForInitialVelocity,
     GoodnessOfFitForInitialBottomElevation,
     GoodnessOfFitForInitialWaterDepth,
-    GoodnessOfFitFor3dEvaluation,
+    GoodnessOfFitFor3dEvaluation, ShearStress,
 )
 from evaluation_runner.analysis.three_dimensional import (
     calculate_ratio_of_eroded_area_dod,
@@ -16,6 +16,7 @@ from evaluation_runner.analysis.three_dimensional import (
     calculate_eroded_volume_sim,
     calculate_deposited_volume_sim, calculate_eroded_volume_dod, calculate_deposited_volume_dod,
 )
+from evaluation_runner.scenario_evaluation.shield_stress import ParametersForScenarioEvaluation
 from misc.dataclasses_for_evaluations import ColumnNamePair
 from statistical_formulas.formulas_goodness_of_fit import (
     calculate_index_of_agreement,
@@ -142,5 +143,17 @@ def goodness_of_fit_for_three_d_analysis(
             union_of_dod_and_simulated_dz_mesh.area)) - (calculate_ratio_of_deposited_area_dod(
             union_of_dod_and_simulated_dz_mesh) / sum(
             union_of_dod_and_simulated_dz_mesh.area)),
+
+    )
+
+def calculate_entries_for_shear_stress_log(experiment_id: str, timestep: float) -> ShearStress:
+    return ShearStress(
+        experiment_id=experiment_id,
+        timestep=timestep,
+        discharge= timestep / 270,
+        abs_area_critical_shear_stress=ParametersForScenarioEvaluation.critical_shield_stress
+        abs
+
+
 
     )
