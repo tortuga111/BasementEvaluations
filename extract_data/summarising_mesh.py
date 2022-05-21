@@ -1,3 +1,4 @@
+import warnings
 from typing import NamedTuple, Iterable
 
 import geopandas as gpd
@@ -7,66 +8,76 @@ from tqdm import tqdm
 from extract_data.create_shape_files_from_simulation_results import SimulationResultsShapes
 
 
+class MappingPair(NamedTuple):
+    raw_name: str
+    final_name: str
+
+
 class StateToNameInShapeFileMapping(NamedTuple):
-    hydraulic_state_t_0: str = "0000000-Va"
-    bottom_elevation_t_0: str = "0000000-Bo"
-    hydraulic_state_t_end: str = "0000003-Va"
-    bottom_elevation_t_end: str = "0000003-Bo"
-    flow_velocity_t_0: str = "0-Value"
-    flow_velocity_t_end: str = "3-Value"
+    water_depth: MappingPair
+    hydraulic_state: MappingPair
+    bottom_elevation: MappingPair
+    flow_velocity: MappingPair
 
 
-def create_default_state_to_name_in_shape_file_mapping(simulation_time_in_seconds: int) -> StateToNameInShapeFileMapping:
+def create_default_state_to_name_in_shape_file_mapping(
+    simulation_time_in_seconds: int,
+) -> StateToNameInShapeFileMapping:
     return StateToNameInShapeFileMapping(
-        hydraulic_state_t_0="0-Value",
-        bottom_elevation_t_0="0-BottomEl",
-        hydraulic_state_t_end=f"{simulation_time_in_seconds}-Value",
-        bottom_elevation_t_end=f"{simulation_time_in_seconds}-BottomEl",
-        flow_velocity_t_0="0-Value",
-        flow_velocity_t_end=f"{simulation_time_in_seconds}-Value",
+        hydraulic_state=MappingPair(f"{simulation_time_in_seconds}-Value", f"wse_{simulation_time_in_seconds}"),
+        bottom_elevation=MappingPair(f"{simulation_time_in_seconds}-BottomEl", f"wse_end_{simulation_time_in_seconds}"),
+        flow_velocity=MappingPair(f"{simulation_time_in_seconds}-Value", f"v_{simulation_time_in_seconds}"),
+        water_depth=MappingPair("f___", f"fwd_{simulation_time_in_seconds}"),
     )
 
 
-def create_esri_style_state_to_name_in_shape_file_mapping() -> StateToNameInShapeFileMapping:
-    return StateToNameInShapeFileMapping(
-        hydraulic_state_t_0="0000000-Va",
-        bottom_elevation_t_0="0000000-Bo",
-        hydraulic_state_t_end="0000003-Va",
-        bottom_elevation_t_end="0000003-Bo",
-        flow_velocity_t_0="0-Value",
-        flow_velocity_t_end="3-Value",
-    )
-
-
-def create_summarising_mesh_with_all_results(
-    all_result_shapes: SimulationResultsShapes, mapping: StateToNameInShapeFileMapping
+def create_mesh_from_mapped_values(
+    all_result_shapes: SimulationResultsShapes,
+    mapping: StateToNameInShapeFileMapping,
 ) -> gpd.GeoDataFrame:
-    bottom_elevation, hydraulic_state, flow_velocity, absolute_flow_velocity = all_result_shapes
-    mesh_with_all_results = gpd.GeoDataFrame(geometry=bottom_elevation.geometry, crs=bottom_elevation.crs)
-    assert mesh_with_all_results.crs == 2056
-
+    bottom_elevation = all_result_shapes.bottom_elevation
+    mesh_with_result = gpd.GeoDataFrame(geometry=bottom_elevation.geometry, crs=bottom_elevation.crs)
+    assert mesh_with_result.crs == 2056
     try:
-        # before flood
-        mesh_with_all_results["wd_t0"] = (
-            hydraulic_state[mapping.hydraulic_state_t_0] - bottom_elevation[mapping.bottom_elevation_t_0]
-        )
-        mesh_with_all_results["v_t0"] = absolute_flow_velocity[mapping.flow_velocity_t_0]
-        mesh_with_all_results["wse_t0"] = hydraulic_state[mapping.hydraulic_state_t_0]
-        mesh_with_all_results["bot_ele_t0"] = bottom_elevation[mapping.bottom_elevation_t_0]
-        # after flood
-        mesh_with_all_results["wd_end"] = (
-            hydraulic_state[mapping.hydraulic_state_t_end] - bottom_elevation[mapping.bottom_elevation_t_end]
-        )
-        mesh_with_all_results["delta_z"] = (
-            bottom_elevation[mapping.bottom_elevation_t_end] - bottom_elevation[mapping.bottom_elevation_t_0]
-        )
-        mesh_with_all_results["v_end"] = absolute_flow_velocity[mapping.flow_velocity_t_end]
-        mesh_with_all_results["bot_ele_end"] = bottom_elevation[mapping.bottom_elevation_t_end]
-        mesh_with_all_results["wse_end"] = hydraulic_state[mapping.hydraulic_state_t_end]
-
+        return calculate_mesh_entries_at_a_given_time(all_result_shapes, mapping, mesh_with_result)
     except KeyError as key_error:
-        print(f"Check the mapping in {mapping}, as you might have missed a column")
+        warnings.warn(f"Check the mapping in {mapping}, as you might have missed a column")
         raise key_error
+
+
+def create_mesh_with_before_and_after_flood_data(
+    all_result_shapes: SimulationResultsShapes,
+    before_flood_mapping: StateToNameInShapeFileMapping,
+    after_flood_mapping: StateToNameInShapeFileMapping,
+) -> gpd.GeoDataFrame:
+    mesh_with_results_before_flood = create_mesh_from_mapped_values(all_result_shapes, before_flood_mapping)
+    mesh_with_results_after_flood = create_mesh_from_mapped_values(all_result_shapes, after_flood_mapping)
+    joined_mesh = mesh_with_results_after_flood.join(mesh_with_results_before_flood, lsuffix="geometry")
+    joined_mesh["delta_z"] = (
+        mesh_with_results_after_flood[after_flood_mapping.bottom_elevation.final_name]
+        - mesh_with_results_before_flood[before_flood_mapping.bottom_elevation.final_name]
+    )
+    return joined_mesh
+
+
+def calculate_mesh_entries_at_a_given_time(
+    all_result_shapes: SimulationResultsShapes,
+    mapping: StateToNameInShapeFileMapping,
+    mesh_with_all_results: gpd.GeoDataFrame,
+) -> gpd.GeoDataFrame:
+    mesh_with_all_results[mapping.water_depth.final_name] = (
+        all_result_shapes.hydraulic_state[mapping.hydraulic_state.raw_name]
+        - all_result_shapes.bottom_elevation[mapping.bottom_elevation.raw_name]
+    )
+    mesh_with_all_results[mapping.flow_velocity.final_name] = all_result_shapes.absolute_flow_velocity[
+        mapping.flow_velocity.raw_name
+    ]
+    mesh_with_all_results[mapping.bottom_elevation.final_name] = all_result_shapes.bottom_elevation[
+        mapping.bottom_elevation.raw_name
+    ]
+    mesh_with_all_results[mapping.hydraulic_state.final_name] = all_result_shapes.hydraulic_state[
+        mapping.hydraulic_state.raw_name
+    ]
     return mesh_with_all_results
 
 

@@ -7,8 +7,8 @@ from utils.loading import load_data_with_crs_2056
 
 
 def create_union_of_dod_and_simulated_dz_mesh(
-        path_to_dod_as_polygon: str,
-        mesh_with_all_results: gpd.GeoDataFrame,
+    path_to_dod_as_polygon: str,
+    mesh_with_all_results: gpd.GeoDataFrame,
 ) -> gpd.GeoDataFrame:
     dod_as_polygon = load_data_with_crs_2056(path_to_dod_as_polygon)
 
@@ -49,16 +49,18 @@ def create_union_of_dod_and_simulated_dz_mesh(
         union_of_dod_and_simulated_dz_mesh["dz_dod"] != union_of_dod_and_simulated_dz_mesh["dz_sim"], "comparison"
     ] = "different"
 
-    union_of_dod_and_simulated_dz_mesh["volume_sim"] = union_of_dod_and_simulated_dz_mesh.area * \
-                                                       union_of_dod_and_simulated_dz_mesh["delta_z"]
-    union_of_dod_and_simulated_dz_mesh["volume_dod"] = union_of_dod_and_simulated_dz_mesh.area * union_of_dod_and_simulated_dz_mesh["deltaz_dod"]
-
+    union_of_dod_and_simulated_dz_mesh["volume_sim"] = (
+        union_of_dod_and_simulated_dz_mesh.area * union_of_dod_and_simulated_dz_mesh["delta_z"]
+    )
+    union_of_dod_and_simulated_dz_mesh["volume_dod"] = (
+        union_of_dod_and_simulated_dz_mesh.area * union_of_dod_and_simulated_dz_mesh["deltaz_dod"]
+    )
 
     return union_of_dod_and_simulated_dz_mesh
 
 
 def clip_mesh_with_polygons(
-        mesh_with_all_results: gpd.GeoDataFrame, masking_polygon: gpd.GeoDataFrame, experiment_id: str
+    mesh_with_all_results: gpd.GeoDataFrame, masking_polygon: gpd.GeoDataFrame, experiment_id: str
 ) -> gpd.GeoDataFrame:
     empty_list_for_clipped_mesh_elements = []
     for polygon_index, polygon in tqdm(enumerate(masking_polygon.geometry)):
@@ -73,8 +75,8 @@ def calculate_ratio_of_eroded_area_dod(union_of_dod_and_simulated_dz_mesh: gpd.G
     return np.divide(
         sum(
             (union_of_dod_and_simulated_dz_mesh.loc[union_of_dod_and_simulated_dz_mesh["dz_dod"] == "erosion", :])
-                .copy(deep=True)
-                .area
+            .copy(deep=True)
+            .area
         ),
         sum(union_of_dod_and_simulated_dz_mesh.area),
     )
@@ -84,8 +86,8 @@ def calculate_ratio_of_deposited_area_dod(union_of_dod_and_simulated_dz_mesh: gp
     return np.divide(
         sum(
             (union_of_dod_and_simulated_dz_mesh.loc[union_of_dod_and_simulated_dz_mesh["dz_dod"] == "deposition", :])
-                .copy(deep=True)
-                .area
+            .copy(deep=True)
+            .area
         ),
         sum(union_of_dod_and_simulated_dz_mesh.area),
     )
@@ -95,8 +97,8 @@ def calculate_ratio_of_eroded_area_sim(union_of_dod_and_simulated_dz_mesh: gpd.G
     return np.divide(
         sum(
             (union_of_dod_and_simulated_dz_mesh.loc[union_of_dod_and_simulated_dz_mesh["dz_sim"] == "erosion", :])
-                .copy(deep=True)
-                .area
+            .copy(deep=True)
+            .area
         ),
         sum(union_of_dod_and_simulated_dz_mesh.area),
     )
@@ -106,8 +108,8 @@ def calculate_ratio_of_deposited_area_sim(union_of_dod_and_simulated_dz_mesh: gp
     return np.divide(
         sum(
             (union_of_dod_and_simulated_dz_mesh.loc[union_of_dod_and_simulated_dz_mesh["dz_sim"] == "deposition", :])
-                .copy(deep=True)
-                .area
+            .copy(deep=True)
+            .area
         ),
         sum(union_of_dod_and_simulated_dz_mesh.area),
     )
@@ -117,8 +119,8 @@ def calculate_ratio_of_identical_change(union_of_dod_and_simulated_dz_mesh: gpd.
     return np.divide(
         sum(
             (union_of_dod_and_simulated_dz_mesh.loc[union_of_dod_and_simulated_dz_mesh["comparison"] == "identical", :])
-                .copy(deep=True)
-                .area
+            .copy(deep=True)
+            .area
         ),
         sum(union_of_dod_and_simulated_dz_mesh.area),
     )
@@ -128,8 +130,8 @@ def calculate_ratio_of_different_change(union_of_dod_and_simulated_dz_mesh: gpd.
     return np.divide(
         sum(
             (union_of_dod_and_simulated_dz_mesh.loc[union_of_dod_and_simulated_dz_mesh["comparison"] == "different", :])
-                .copy(deep=True)
-                .area
+            .copy(deep=True)
+            .area
         ),
         sum(union_of_dod_and_simulated_dz_mesh.area),
     )
@@ -144,9 +146,11 @@ def calculate_deposited_volume_sim(union_of_dod_and_simulated_dz_mesh: gpd.GeoDa
     selection_of_deposition_area = union_of_dod_and_simulated_dz_mesh.loc[lambda x: x["dz_sim"] == "deposition"]
     return sum(selection_of_deposition_area["volume_sim"])
 
+
 def calculate_eroded_volume_dod(union_of_dod_and_simulated_dz_mesh: gpd.GeoDataFrame) -> float:
     selection_of_erosion_area = union_of_dod_and_simulated_dz_mesh.loc[lambda x: x["dz_dod"] == "erosion", :]
     return sum(selection_of_erosion_area["volume_dod"])
+
 
 def calculate_deposited_volume_dod(union_of_dod_and_simulated_dz_mesh: gpd.GeoDataFrame):
     selection_of_deposition_area = union_of_dod_and_simulated_dz_mesh.loc[lambda x: x["dz_dod"] == "deposition"]

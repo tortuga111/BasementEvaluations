@@ -11,8 +11,8 @@ import pandas as pd
 import folium
 
 
-
 from utils.loading import load_data_with_crs_2056
+
 
 def load_raster(path_to_raster):
     with rio.open(path_to_raster) as raster_to_process:
@@ -20,19 +20,16 @@ def load_raster(path_to_raster):
     return raster_to_process
 
 
-
 def main():
     path_to_raster = r"C:\Users\nflue\Documents\Masterarbeit\02_Data\03_Bathymetry\DoDs\dod_v2\dod_af20_min_bf20.tif"
 
-    path_to_polygon = (
-        r"C:\Users\nflue\Desktop\experiments\experiments_old_mesh_batch1\runs_with_kst30_and_40_and_grain0.05_and_0.082_results\polygons\elevation_change_discharge_file@Hydrograph_HW2020_115000.txt$end@115000$fixed_bed@0$grain_diameter@0.05$kst_regions@30.shp"
-    )
+    path_to_polygon = r"C:\Users\nflue\Desktop\experiments\experiments_old_mesh_batch1\runs_with_kst30_and_40_and_grain0.05_and_0.082_results\polygons\elevation_change_discharge_file@Hydrograph_HW2020_115000.txt$end@115000$fixed_bed@0$grain_diameter@0.05$kst_regions@30.shp"
 
     polygon_as_area_of_interest = load_data_with_crs_2056(path_to_polygon)
     dod = load_raster(path_to_raster)
 
     _results = []
-    for i in polygon_as_area_of_interest['geometry']:
+    for i in polygon_as_area_of_interest["geometry"]:
         roi = polygon_as_area_of_interest[polygon_as_area_of_interest.geometry == i]
 
         # using the mask.mask module from Rasterio to specify the ROI

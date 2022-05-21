@@ -1,5 +1,5 @@
 import os.path
-from typing import Iterable, NamedTuple
+from typing import Iterable, NamedTuple, Sequence
 
 import geopandas as gpd
 import h5py
@@ -41,8 +41,18 @@ class SimulationResultsShapes(NamedTuple):
     absolute_flow_velocity: gpd.GeoDataFrame
 
 
+def append_constant_data_per_time_step_to_geo_data_frame(
+    base_data_frame: GeoDataFrame, file_with_constant_1d_data: h5py.File, column_name: str, time_steps: Sequence[int]
+) -> GeoDataFrame:
+    data_frame_to_fill = base_data_frame.copy(deep=True)
+    for time_step in tqdm(time_steps):
+        column_key = f"{time_step}-{column_name}"
+        data_frame_to_fill[column_key] = file_with_constant_1d_data
+    return data_frame_to_fill
+
+
 def process_h5_files_to_shape_files(
-    path_to_root_directory: str, path_to_mesh: str, time_step: int
+    path_to_root_directory: str, path_to_mesh: str, time_step: int, used_geomorphologic_module: bool
 ) -> SimulationResultsShapes:
     path_to_results = os.path.join(path_to_root_directory, "evaluation")
     if not os.path.exists(path_to_results):
@@ -58,9 +68,7 @@ def process_h5_files_to_shape_files(
     with change_back_to_original_wd_afterwards(path_to_results):
         h5_path = os.path.join(path_to_root_directory, GlobalConstants.results_h5_file_name)
         h5_results_data = h5py.File(h5_path, "r")
-        bottom_elevation = append_time_series_data_to_geo_data_frame(
-            base_data_frame, h5_results_data["RESULTS/CellsAll/BottomEl"], ["BottomEl"]
-        )
+
         hydraulic_state = append_time_series_data_to_geo_data_frame(
             base_data_frame,
             h5_results_data["RESULTS/CellsAll/HydState"],
@@ -74,6 +82,15 @@ def process_h5_files_to_shape_files(
         absolute_flow_velocity = append_time_series_data_to_geo_data_frame(
             base_data_frame, h5_auxiliary_data["flow_velocity_abs"], ["Value"]
         )
+        if used_geomorphologic_module:
+            bottom_elevation = append_time_series_data_to_geo_data_frame(
+                base_data_frame, h5_results_data["RESULTS/CellsAll/BottomEl"], ["BottomEl"]
+            )
+        else:
+            time_steps = list(range(len(absolute_flow_velocity.columns) - 1))
+            bottom_elevation = append_constant_data_per_time_step_to_geo_data_frame(
+                base_data_frame, h5_results_data["CellsAll/BottomEl"], "BottomEl", time_steps
+            )
 
     return rename_columns_to_represent_time_step(
         SimulationResultsShapes(

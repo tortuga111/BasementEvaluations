@@ -125,9 +125,9 @@ class GoodnessOfFitFor3dEvaluation(BaseLogEntry):
 
 @dataclass(frozen=True)
 class ShearStress(BaseLogEntry):
-    timestep: float
+    time_step: float
     discharge: float
-    abs_area_critical_shear_stress: float
+    abs_area_critical_shield_stress: float
     rel_area_critical_shear_stress: float
     area_guenter_criterion: float
     rel_area_guenter_criterion: float
