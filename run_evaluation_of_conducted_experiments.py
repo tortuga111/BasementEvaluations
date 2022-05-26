@@ -2,7 +2,9 @@ import json
 import os
 from typing import NamedTuple
 
+import matplotlib.pyplot as plt
 import pandas as pd
+import plotly.graph_objects as go
 from geopandas import GeoDataFrame
 from tqdm import tqdm
 
@@ -34,6 +36,7 @@ from evaluation_runner.scenario_evaluation.shield_stress import (
     ParametersForShearStressEvaluation,
     calculate_and_log_shear_stress_statistics,
     create_parameters_for_shear_stress,
+    select_area_where_guenter_criterion_is_reached,
 )
 from extract_data.create_shape_files_from_simulation_results import process_h5_files_to_shape_files
 from extract_data.summarising_mesh import (
@@ -116,11 +119,11 @@ def evaluate_simulation_on_given_points(
     for path in all_paths_to_experiment_results:
         experiment_id = os.path.split(path)[-1]
         resulting_geo_data_frames = process_h5_files_to_shape_files(
-            path, path_to_mesh=path_to_mesh, time_step=8100, used_geomorphologic_module=False
+            path, path_to_mesh=path_to_mesh, time_step=300, used_geomorphologic_module=True
         )
 
         # evaluate some intermediate states without comparison:
-        if do_individual_evaluations := True:
+        if do_individual_evaluations := False:
             for time_step in time_steps_to_evaluate_individually:
                 mapping_for_step = create_default_state_to_name_in_shape_file_mapping(time_step)
                 mesh_for_this_time_step = create_mesh_from_mapped_values(resulting_geo_data_frames, mapping_for_step)
@@ -132,6 +135,8 @@ def evaluate_simulation_on_given_points(
                     )
                 )
 
+                # selection_where_flow_velocity_and_wd_are_too_small.to_file(f"out\\shapes_shear_stress\\shear_stress{time_step}.shp")
+
                 logger_shear_stress = calculate_and_log_shear_stress_statistics(
                     logger_shear_stress=logger_shear_stress,
                     time_step=time_step,
@@ -139,6 +144,14 @@ def evaluate_simulation_on_given_points(
                     experiment_id=experiment_id,
                     selection_where_wd_and_v_too_small=selection_where_flow_velocity_and_wd_are_too_small,
                 )
+
+                area_where_guenter_criterion_is_reached = select_area_where_guenter_criterion_is_reached(
+                    selection_where_wd_and_v_too_small=selection_where_flow_velocity_and_wd_are_too_small,
+                    evaluation_parameters=evaluation_parameters_for_shear_stress,
+                )
+
+                area_where_guenter_criterion_is_reached.plot()
+                plt.savefig(f"out\\plots_shieldstress\\crit_shield_stress{time_step}.jpg")
 
             write_log_for_shear_stress(logger_shear_stress, flood_scenario=flood_scenario)
 
@@ -156,7 +169,7 @@ def evaluate_simulation_on_given_points(
         valid_mapping = derive_columns_to_lookup_from_flood_scenario(
             before_flood_mapping, after_flood_mapping, flood_scenario
         )
-        if do_points := False:
+        if do_points := True:
             renamed_updated_gps_points = assign_requested_values_from_summarising_mesh_to_point(
                 columns_to_lookup=[pair.final_name for pair in valid_mapping],
                 mesh_with_all_results=before_and_after_flood_mesh,
@@ -176,7 +189,7 @@ def evaluate_simulation_on_given_points(
                 flood_scenario=flood_scenario,
             )
 
-        if do_profiles := False:
+        if do_profiles := True:
             evaluate_points_along_profiles(
                 mesh_with_all_results=before_and_after_flood_mesh,
                 flood_scenario=flood_scenario,
@@ -185,7 +198,7 @@ def evaluate_simulation_on_given_points(
                 experiment_id=experiment_id,
             )
 
-        if do_polygons := False:
+        if do_polygons := True:
             union_of_dod_and_simulated_dz_mesh = create_union_of_dod_and_simulated_dz_mesh(
                 path_to_dod_as_polygon=path_to_dod_as_polygon,
                 mesh_with_all_results=before_and_after_flood_mesh,
@@ -330,19 +343,35 @@ def write_log_for_shear_stress(logger_shear_stress: CSVLogger, flood_scenario: B
 
 def main():
     flood_scenario = BeforeOrAfterFloodScenario.af_2020
-    simulation_time_in_seconds = 243000
+    simulation_time_in_seconds = 90000
 
     path_to_gps_points = create_paths(flood_scenario).path_to_gps_points
     # old:path_to_mesh = r"C:\Users\nflue\Documents\Masterarbeit\02_Data\04_Model_220309\04_Model\01_input_data_old\BF2020_Mesh\new_mesh_all_inputs\bathymetry_and_mesh_BF2020_computational-mesh.2dm"
     path_to_mesh = r"C:\Users\nflue\Documents\Masterarbeit\02_Data\04_Model_220511\04_Model\01_input_data\BF2020_Mesh\new_mesh_all_inputs\Project1_computational-mesh.2dm"
 
     paths_to_polygon_as_area_of_interest = (
-        "C:\\Users\\nflue\\Documents\\Masterarbeit\\02_Data\\05_evaluation\\areas_to_compare_dod_bf_and_af\\side_channel_island.shp",
-        "C:\\Users\\nflue\\Documents\\Masterarbeit\\02_Data\\05_evaluation\\areas_to_compare_dod_bf_and_af\\main_channel_island.shp",
-        "C:\\Users\\nflue\\Documents\\Masterarbeit\\02_Data\\05_evaluation\\areas_to_compare_dod_bf_and_af\\begin_island.shp",
-        "C:\\Users\\nflue\\Documents\\Masterarbeit\\02_Data\\05_evaluation\\areas_to_compare_dod_bf_and_af\\end_island.shp",
-        "C:\\Users\\nflue\\Documents\\Masterarbeit\\02_Data\\05_evaluation\\areas_to_compare_dod_bf_and_af\\main_channel.shp",
-        "C:\\Users\\nflue\\Documents\\Masterarbeit\\02_Data\\05_evaluation\\areas_to_compare_dod_bf_and_af\\gravel_bar.shp",
+        "C:\\Users\\nflue\\Documents\\Masterarbeit\\02_Data\\05_evaluation\\areas_to_compare_dod_bf_and_af\\1.shp",
+        "C:\\Users\\nflue\\Documents\\Masterarbeit\\02_Data\\05_evaluation\\areas_to_compare_dod_bf_and_af\\2.shp",
+        "C:\\Users\\nflue\\Documents\\Masterarbeit\\02_Data\\05_evaluation\\areas_to_compare_dod_bf_and_af\\3.shp",
+        "C:\\Users\\nflue\\Documents\\Masterarbeit\\02_Data\\05_evaluation\\areas_to_compare_dod_bf_and_af\\4.shp",
+        "C:\\Users\\nflue\\Documents\\Masterarbeit\\02_Data\\05_evaluation\\areas_to_compare_dod_bf_and_af\\5.shp",
+        "C:\\Users\\nflue\\Documents\\Masterarbeit\\02_Data\\05_evaluation\\areas_to_compare_dod_bf_and_af\\6.shp",
+        "C:\\Users\\nflue\\Documents\\Masterarbeit\\02_Data\\05_evaluation\\areas_to_compare_dod_bf_and_af\\7.shp",
+        "C:\\Users\\nflue\\Documents\\Masterarbeit\\02_Data\\05_evaluation\\areas_to_compare_dod_bf_and_af\\8.shp",
+        "C:\\Users\\nflue\\Documents\\Masterarbeit\\02_Data\\05_evaluation\\areas_to_compare_dod_bf_and_af\\9.shp",
+        "C:\\Users\\nflue\\Documents\\Masterarbeit\\02_Data\\05_evaluation\\areas_to_compare_dod_bf_and_af\\10.shp",
+        "C:\\Users\\nflue\\Documents\\Masterarbeit\\02_Data\\05_evaluation\\areas_to_compare_dod_bf_and_af\\11.shp",
+        "C:\\Users\\nflue\\Documents\\Masterarbeit\\02_Data\\05_evaluation\\areas_to_compare_dod_bf_and_af\\12.shp",
+        "C:\\Users\\nflue\\Documents\\Masterarbeit\\02_Data\\05_evaluation\\areas_to_compare_dod_bf_and_af\\13.shp",
+        "C:\\Users\\nflue\\Documents\\Masterarbeit\\02_Data\\05_evaluation\\areas_to_compare_dod_bf_and_af\\14.shp",
+        "C:\\Users\\nflue\\Documents\\Masterarbeit\\02_Data\\05_evaluation\\areas_to_compare_dod_bf_and_af\\15.shp",
+        "C:\\Users\\nflue\\Documents\\Masterarbeit\\02_Data\\05_evaluation\\areas_to_compare_dod_bf_and_af\\16.shp",
+        "C:\\Users\\nflue\\Documents\\Masterarbeit\\02_Data\\05_evaluation\\areas_to_compare_dod_bf_and_af\\17.shp",
+        "C:\\Users\\nflue\\Documents\\Masterarbeit\\02_Data\\05_evaluation\\areas_to_compare_dod_bf_and_af\\18.shp",
+        "C:\\Users\\nflue\\Documents\\Masterarbeit\\02_Data\\05_evaluation\\areas_to_compare_dod_bf_and_af\\19.shp",
+        "C:\\Users\\nflue\\Documents\\Masterarbeit\\02_Data\\05_evaluation\\areas_to_compare_dod_bf_and_af\\20.shp",
+        "C:\\Users\\nflue\\Documents\\Masterarbeit\\02_Data\\05_evaluation\\areas_to_compare_dod_bf_and_af\\21.shp",
+        "C:\\Users\\nflue\\Documents\\Masterarbeit\\02_Data\\05_evaluation\\areas_to_compare_dod_bf_and_af\\22.shp",
     )
     path_to_dod_as_polygon = (
         "C:\\Users\\nflue\\Documents\\Masterarbeit\\02_Data\\03_Bathymetry\\DoDs\\dod_v2\\dod_as_polygon.shp"
@@ -350,7 +379,7 @@ def main():
     path_to_folder_containing_points_with_lines = "C:\\Users\\nflue\\Documents\\Masterarbeit\\03_Projects\\MasterThesis\\BasementPreparation\\river_profiles_from_bathymetry"
 
     paths_to_json_with_experiment_paths = (
-        r"C:\Users\nflue\Desktop\experiments\experiments\shield_stress\long_run_shield_stress\paths_to_experiments.json"
+        r"C:\Users\nflue\Desktop\experiments\experiments\new_strickler_different_fixed_bed\paths_to_experiments.json"
     )
 
     evaluation_parameters_for_shear_stress = create_parameters_for_shear_stress()

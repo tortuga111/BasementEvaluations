@@ -18,6 +18,7 @@ class StateToNameInShapeFileMapping(NamedTuple):
     hydraulic_state: MappingPair
     bottom_elevation: MappingPair
     flow_velocity: MappingPair
+    chezy_coefficient: MappingPair
 
 
 def create_default_state_to_name_in_shape_file_mapping(
@@ -25,9 +26,10 @@ def create_default_state_to_name_in_shape_file_mapping(
 ) -> StateToNameInShapeFileMapping:
     return StateToNameInShapeFileMapping(
         hydraulic_state=MappingPair(f"{simulation_time_in_seconds}-Value", f"wse_{simulation_time_in_seconds}"),
-        bottom_elevation=MappingPair(f"{simulation_time_in_seconds}-BottomEl", f"wse_end_{simulation_time_in_seconds}"),
+        bottom_elevation=MappingPair(f"{simulation_time_in_seconds}-BottomEl", f"bottom_el_{simulation_time_in_seconds}"),
         flow_velocity=MappingPair(f"{simulation_time_in_seconds}-Value", f"v_{simulation_time_in_seconds}"),
         water_depth=MappingPair("f___", f"fwd_{simulation_time_in_seconds}"),
+        chezy_coefficient=MappingPair(f"{simulation_time_in_seconds}-ChezyCoe", f"chezy_{simulation_time_in_seconds}"),
     )
 
 
@@ -77,6 +79,9 @@ def calculate_mesh_entries_at_a_given_time(
     ]
     mesh_with_all_results[mapping.hydraulic_state.final_name] = all_result_shapes.hydraulic_state[
         mapping.hydraulic_state.raw_name
+    ]
+    mesh_with_all_results[mapping.chezy_coefficient.final_name] = all_result_shapes.chezy_coefficient[
+        mapping.chezy_coefficient.raw_name
     ]
     return mesh_with_all_results
 

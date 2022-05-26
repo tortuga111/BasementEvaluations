@@ -1,8 +1,10 @@
 import os.path
-from typing import Iterable, NamedTuple, Sequence
+from typing import Iterable, NamedTuple, Sequence, Union
 
 import geopandas as gpd
 import h5py
+import numpy as np
+import pandas as pd
 import py2dm
 from geopandas import GeoDataFrame
 from shapely.geometry import Polygon
@@ -32,6 +34,7 @@ class SimulationResultsShapeFilePaths(NamedTuple):
     path_to_hydraulic_state: str
     path_to_flow_velocity: str
     path_to_absolute_flow_velocity: str
+    path_to_chezy_coefficient: str
 
 
 class SimulationResultsShapes(NamedTuple):
@@ -39,10 +42,14 @@ class SimulationResultsShapes(NamedTuple):
     hydraulic_state: gpd.GeoDataFrame
     flow_velocity: gpd.GeoDataFrame
     absolute_flow_velocity: gpd.GeoDataFrame
+    chezy_coefficient: gpd.GeoDataFrame
 
 
 def append_constant_data_per_time_step_to_geo_data_frame(
-    base_data_frame: GeoDataFrame, file_with_constant_1d_data: h5py.File, column_name: str, time_steps: Sequence[int]
+    base_data_frame: GeoDataFrame,
+    file_with_constant_1d_data: Union[h5py.File, list],
+    column_name: str,
+    time_steps: Sequence[int],
 ) -> GeoDataFrame:
     data_frame_to_fill = base_data_frame.copy(deep=True)
     for time_step in tqdm(time_steps):
@@ -82,12 +89,23 @@ def process_h5_files_to_shape_files(
         absolute_flow_velocity = append_time_series_data_to_geo_data_frame(
             base_data_frame, h5_auxiliary_data["flow_velocity_abs"], ["Value"]
         )
+        time_steps = list(range(len(absolute_flow_velocity.columns) - 1))
+
+        chezy_coefficient_is_available = "ChezyCoe" in h5_results_data["RESULTS/CellsAll"].keys()
+        if chezy_coefficient_is_available:
+            chezy_coefficient = append_time_series_data_to_geo_data_frame(
+                base_data_frame, h5_results_data["RESULTS/CellsAll/ChezyCoe"], ["ChezyCoe"]
+            )
+        else:
+            chezy_coefficient = append_constant_data_per_time_step_to_geo_data_frame(
+                base_data_frame, [pd.NA] * len(base_data_frame.geometry), "ChezyCoe", time_steps
+            )
+
         if used_geomorphologic_module:
             bottom_elevation = append_time_series_data_to_geo_data_frame(
                 base_data_frame, h5_results_data["RESULTS/CellsAll/BottomEl"], ["BottomEl"]
             )
         else:
-            time_steps = list(range(len(absolute_flow_velocity.columns) - 1))
             bottom_elevation = append_constant_data_per_time_step_to_geo_data_frame(
                 base_data_frame, h5_results_data["CellsAll/BottomEl"], "BottomEl", time_steps
             )
@@ -98,6 +116,7 @@ def process_h5_files_to_shape_files(
             hydraulic_state=hydraulic_state.copy(),
             flow_velocity=flow_velocity.copy(),
             absolute_flow_velocity=absolute_flow_velocity.copy(),
+            chezy_coefficient=chezy_coefficient.copy(),
         ),
         time_step,
     )

@@ -11,4 +11,5 @@ def load_data_from_simulations(paths: SimulationResultsShapeFilePaths) -> Simula
         hydraulic_state=load_data_with_crs_2056(paths.path_to_hydraulic_state),
         flow_velocity=load_data_with_crs_2056(paths.path_to_flow_velocity),
         absolute_flow_velocity=load_data_with_crs_2056(paths.path_to_absolute_flow_velocity),
+        chezy_coefficient=load_data_with_crs_2056(paths.path_to_chezy_coefficient),
     )

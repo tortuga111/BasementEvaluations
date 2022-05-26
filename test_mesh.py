@@ -7,39 +7,72 @@ import matplotlib.pyplot as plt
 import numpy as np
 import geopandas as gpd
 import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+import goodness_of_fit as gof
 
 import folium
 
 
-from utils.loading import load_data_with_crs_2056
-
-
-def load_raster(path_to_raster):
-    with rio.open(path_to_raster) as raster_to_process:
-        raster_to_process: DatasetReader
-    return raster_to_process
-
-
 def main():
-    path_to_raster = r"C:\Users\nflue\Documents\Masterarbeit\02_Data\03_Bathymetry\DoDs\dod_v2\dod_af20_min_bf20.tif"
+    path_to_csv_3d_results = r"C:\Users\nflue\Documents\Masterarbeit\03_Projects\MasterThesis\BasementEvaluations\.logs\log_three_d_statistics_BeforeOrAfterFloodScenario.af_2020.csv"
+    three_dimensional_results = pd.read_csv(path_to_csv_3d_results, sep=";")
 
-    path_to_polygon = r"C:\Users\nflue\Desktop\experiments\experiments_old_mesh_batch1\runs_with_kst30_and_40_and_grain0.05_and_0.082_results\polygons\elevation_change_discharge_file@Hydrograph_HW2020_115000.txt$end@115000$fixed_bed@0$grain_diameter@0.05$kst_regions@30.shp"
+    fig = px.box(three_dimensional_results, x="experiment_id", y="eroded_volume_per_area_abs_error")
+    # fig.update_traces(quartilemethod="exclusive")  # or "inclusive", or "linear" by default
+    fig.show()
 
-    polygon_as_area_of_interest = load_data_with_crs_2056(path_to_polygon)
-    dod = load_raster(path_to_raster)
+    print(three_dimensional_results.head())
 
-    _results = []
-    for i in polygon_as_area_of_interest["geometry"]:
-        roi = polygon_as_area_of_interest[polygon_as_area_of_interest.geometry == i]
 
-        # using the mask.mask module from Rasterio to specify the ROI
-        gtraster, bound = mask.mask(dod, roi["geometry"], crop=True)
+    print(gof.rmse(three_dimensional_results["eroded_volume_per_area_sim"].groupby("experiment_id"), three_dimensional_results["eroded_volume_per_area_obs"].groupby("experiment_id")))
 
-        # values greater than 0 represent the estimated population count for that pixel
-        _results.append(gtraster[0][gtraster[0] >= 0].mean())
+    path_to_csv_shear_stress_results = (
+        r"C:\Users\nflue\Documents\Masterarbeit\03_Projects\MasterThesis\BasementEvaluations\.logs\log_shear_stress.csv"
+    )
+    shear_stress_results = pd.read_csv(path_to_csv_shear_stress_results, sep=";")
 
-        # Save the estimated counts for each year in a new column
-    polygon_as_area_of_interest["dz_dod"] = _results
+    fig = go.Figure()
+    fig.add_trace(
+        go.Scatter(
+            x=shear_stress_results["discharge"],
+            y=shear_stress_results["area_guenter_criterion"],
+            mode="lines+markers",
+            name="area where guenter criterion is reached",
+        ),
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=shear_stress_results["discharge"],
+            y=shear_stress_results["abs_area_critical_shield_stress"],
+            mode="lines+markers",
+            name="area where critical shield stress is reached",
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=shear_stress_results["discharge"],
+            y=shear_stress_results["area_guenter_criterion_chezy"],
+            mode="lines+markers",
+            name="area where guenter criterion is reached with chezy",
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=shear_stress_results["discharge"],
+            y=shear_stress_results["abs_area_critical_shield_stress_chezy"],
+            mode="lines+markers",
+            name="area where critical shield stress is reached with chezy",
+        )
+    )
+    fig.update_layout(
+        xaxis=dict(title=r"discharge $[\frac{$m^{3}$}{s}$"),
+        yaxis=dict(title="area [m^2^]"),
+        font=dict(
+            size=12,
+        ),
+    )
+    fig.show()
 
 
 if __name__ == "__main__":
