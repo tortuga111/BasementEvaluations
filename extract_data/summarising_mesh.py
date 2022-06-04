@@ -26,7 +26,9 @@ def create_default_state_to_name_in_shape_file_mapping(
 ) -> StateToNameInShapeFileMapping:
     return StateToNameInShapeFileMapping(
         hydraulic_state=MappingPair(f"{simulation_time_in_seconds}-Value", f"wse_{simulation_time_in_seconds}"),
-        bottom_elevation=MappingPair(f"{simulation_time_in_seconds}-BottomEl", f"bottom_el_{simulation_time_in_seconds}"),
+        bottom_elevation=MappingPair(
+            f"{simulation_time_in_seconds}-BottomEl", f"bottom_el_{simulation_time_in_seconds}"
+        ),
         flow_velocity=MappingPair(f"{simulation_time_in_seconds}-Value", f"v_{simulation_time_in_seconds}"),
         water_depth=MappingPair("f___", f"fwd_{simulation_time_in_seconds}"),
         chezy_coefficient=MappingPair(f"{simulation_time_in_seconds}-ChezyCoe", f"chezy_{simulation_time_in_seconds}"),

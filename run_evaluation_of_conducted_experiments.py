@@ -36,7 +36,7 @@ from evaluation_runner.scenario_evaluation.shield_stress import (
     ParametersForShearStressEvaluation,
     calculate_and_log_shear_stress_statistics,
     create_parameters_for_shear_stress,
-    select_area_where_guenter_criterion_is_reached,
+    select_area_where_guenter_criterion_is_reached, select_area_where_guenter_criterion_is_reached_chezy,
 )
 from extract_data.create_shape_files_from_simulation_results import process_h5_files_to_shape_files
 from extract_data.summarising_mesh import (
@@ -153,6 +153,13 @@ def evaluate_simulation_on_given_points(
                 area_where_guenter_criterion_is_reached.plot()
                 plt.savefig(f"out\\plots_shieldstress\\crit_shield_stress{time_step}.jpg")
 
+                area_where_guenter_criterion_is_reached_chezy = select_area_where_guenter_criterion_is_reached_chezy(
+                    selection_where_wd_and_v_too_small=selection_where_flow_velocity_and_wd_are_too_small,
+                    evaluation_parameters=evaluation_parameters_for_shear_stress
+                )
+                area_where_guenter_criterion_is_reached_chezy.plot()
+                plt.savefig(f"out\\plots_shieldstress\\crit_shield_stress{time_step}_chezy.jpg")
+
             write_log_for_shear_stress(logger_shear_stress, flood_scenario=flood_scenario)
 
         #
@@ -219,16 +226,17 @@ def evaluate_simulation_on_given_points(
                 )
                 all_polygons[polygon_name] = masking_polygons_for_evaluation
 
-            all_masking_polygons = pd.concat(all_polygons.values())
-            clipped_mesh = clip_mesh_with_polygons(
-                union_of_dod_and_simulated_dz_mesh, all_masking_polygons, experiment_id
-            )
-            logger_goodness_of_fit_for_three_d_evaluation = calculate_and_log_3d_statistics_for_polygons(
-                logger_goodness_of_fit_for_three_d_evaluation,
-                union_of_dod_and_simulated_dz_mesh=clipped_mesh,
-                experiment_id=experiment_id,
-                polygon_name="-".join(all_polygons.keys()),
-            )
+            if do_summary_of_all_polygons := False:
+                all_masking_polygons = pd.concat(all_polygons.values())
+                clipped_mesh = clip_mesh_with_polygons(
+                    union_of_dod_and_simulated_dz_mesh, all_masking_polygons, experiment_id
+                )
+                logger_goodness_of_fit_for_three_d_evaluation = calculate_and_log_3d_statistics_for_polygons(
+                    logger_goodness_of_fit_for_three_d_evaluation,
+                    union_of_dod_and_simulated_dz_mesh=clipped_mesh,
+                    experiment_id=experiment_id,
+                    polygon_name="-".join(all_polygons.keys()),
+                )
 
             write_log_for_3d_evaluation(
                 logger_goodness_of_fit_for_three_d_evaluation=logger_goodness_of_fit_for_three_d_evaluation,
