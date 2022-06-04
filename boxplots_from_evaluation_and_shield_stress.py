@@ -22,14 +22,11 @@ from statistical_formulas.formulas_goodness_of_fit import calculate_root_mean_sq
 
 def calculate_index_of_agreement_for_volumes(simulated_deposited, observed_deposited):
     return 1 - np.divide(
-        sum(np.square(
-            np.subtract(simulated_deposited, observed_deposited))),
+        sum(np.square(np.subtract(simulated_deposited, observed_deposited))),
         sum(
             np.square(
-                abs(np.subtract(simulated_deposited,
-                                np.mean(observed_deposited)))
-                + abs(np.subtract(observed_deposited,
-                                  np.mean(observed_deposited))),
+                abs(np.subtract(simulated_deposited, np.mean(observed_deposited)))
+                + abs(np.subtract(observed_deposited, np.mean(observed_deposited))),
             )
         ),
     )
@@ -44,21 +41,30 @@ def main():
     for group_name, group in three_dimensional_results.groupby("experiment_id"):
         group_nr += 1
         fig.add_trace(
-            go.Box(x=[group_nr - 0.25] * len(group), y=group["eroded_volume_per_area_abs_error"], name=group_name,
-                   marker_color='indianred'))
+            go.Box(
+                x=[group_nr - 0.25] * len(group),
+                y=group["eroded_volume_per_area_abs_error"],
+                name=group_name,
+                marker_color="indianred",
+            )
+        )
         fig.add_trace(
-            go.Box(x=[group_nr + 0.25] * len(group), y=group["deposited_volume_per_area_abs_error"], name=group_name,
-                   marker_color='lightseagreen')
+            go.Box(
+                x=[group_nr + 0.25] * len(group),
+                y=group["deposited_volume_per_area_abs_error"],
+                name=group_name,
+                marker_color="lightseagreen",
+            )
         )
     # fig.update_traces(quartilemethod="exclusive")  # or "inclusive", or "linear" by default
     fig.show()
 
-
     # calculate goodness of fit parameters for volumes:
     for group_name, group in three_dimensional_results.groupby("experiment_id"):
 
-        column_names_deposited_volume_change_per_area = ColumnNamePair(observed=group["deposited_volume_per_area_dod"],
-                                                                       simulated=group["deposited_volume_per_area_sim"])
+        column_names_deposited_volume_change_per_area = ColumnNamePair(
+            observed=group["deposited_volume_per_area_dod"], simulated=group["deposited_volume_per_area_sim"]
+        )
 
         experiment_id = group["experiment_id"]
         observed_deposited = group["deposited_volume_per_area_dod"]
@@ -67,8 +73,9 @@ def main():
         observed_eroded = group["eroded_volume_per_area_dod"]
         simulated_eroded = group["eroded_volume_per_area_sim"]
 
-
-        index_of_agreement_deposited_volume = calculate_index_of_agreement_for_volumes(observed_deposited, simulated_deposited)
+        index_of_agreement_deposited_volume = calculate_index_of_agreement_for_volumes(
+            observed_deposited, simulated_deposited
+        )
 
         root_mean_square_error_deposition = sum(np.square(simulated_deposited - observed_deposited))
         root_mean_square_error_erosion = sum(np.square(simulated_eroded - observed_eroded))
