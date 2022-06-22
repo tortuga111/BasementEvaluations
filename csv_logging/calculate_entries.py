@@ -7,7 +7,7 @@ from csv_logging.csvlogger import (
     GoodnessOfFitFor3dEvaluation,
     ShearStress,
 )
-from evaluation_runner.analysis.three_dimensional import (
+from evaluation_runner.analysis_calibration.three_dimensional import (
     calculate_ratio_of_eroded_area_dod,
     calculate_ratio_of_deposited_area_dod,
     calculate_ratio_of_eroded_area_sim,
@@ -117,6 +117,7 @@ def goodness_of_fit_for_three_d_analysis(
     return GoodnessOfFitFor3dEvaluation(
         experiment_id=experiment_id,
         polygon_name=polygon_name,
+        area_polygon=sum(union_of_dod_and_simulated_dz_mesh.area),
         ratio_of_eroded_area_dod=calculate_ratio_of_eroded_area_dod(union_of_dod_and_simulated_dz_mesh),
         ratio_of_deposited_area_dod=calculate_ratio_of_deposited_area_dod(union_of_dod_and_simulated_dz_mesh),
         ratio_of_eroded_area_sim=calculate_ratio_of_eroded_area_sim(union_of_dod_and_simulated_dz_mesh),

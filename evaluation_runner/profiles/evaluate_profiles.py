@@ -17,11 +17,11 @@ from profile_creation.containers import BeforeOrAfterFloodScenario, OrderedProje
 
 
 def evaluate_points_along_profiles(
-    mesh_with_all_results: gpd.GeoDataFrame,
-    flood_scenario: BeforeOrAfterFloodScenario,
-    path_to_folder_containing_points_with_line: str,
-    colum_name_mapping: StateToNameInShapeFileMapping,
-    experiment_id: str,
+        mesh_with_all_results: gpd.GeoDataFrame,
+        flood_scenario: BeforeOrAfterFloodScenario,
+        path_to_folder_containing_points_with_line: str,
+        colum_name_mapping: StateToNameInShapeFileMapping,
+        experiment_id: str,
 ) -> None:
     transect_lines_and_points = extract_specified_column_values_from_results_file(
         [pair.final_name for pair in colum_name_mapping],
@@ -41,10 +41,10 @@ def evaluate_points_along_profiles(
 
 
 def extract_specified_column_values_from_results_file(
-    columns_to_lookup: Iterable[str],
-    mesh_with_all_results: gpd.GeoDataFrame,
-    flood_scenario: BeforeOrAfterFloodScenario,
-    path_to_folder_containing_points_with_line: str,
+        columns_to_lookup: Iterable[str],
+        mesh_with_all_results: gpd.GeoDataFrame,
+        flood_scenario: BeforeOrAfterFloodScenario,
+        path_to_folder_containing_points_with_line: str,
 ) -> list[OrderedProjectedGpsPointsPerProfileLine]:
     updated_line_and_points_with_data = []
     file_names = glob.glob(
@@ -61,10 +61,10 @@ def extract_specified_column_values_from_results_file(
 
 
 def create_histogram_with_mesh_values(
-    gps_points: gpd.GeoDataFrame,
-    column_to_make_histogram_from: str,
-    flood_scenario: BeforeOrAfterFloodScenario,
-    experiment_id: str,
+        gps_points: gpd.GeoDataFrame,
+        column_to_make_histogram_from: str,
+        flood_scenario: BeforeOrAfterFloodScenario,
+        experiment_id: str,
 ):
     file_path = f"out\\histograms\\{flood_scenario.value}_{experiment_id}\\"
     if not os.path.exists(file_path):
@@ -81,11 +81,11 @@ def create_histogram_with_mesh_values(
 
 
 def create_scatter_plot(
-    gps_points: gpd.GeoDataFrame,
-    column_to_make_scatter_from_sim: str,
-    flood_scenario: BeforeOrAfterFloodScenario,
-    experiment_id: str,
-    column_to_make_scatter_from_obs: str,
+        gps_points: gpd.GeoDataFrame,
+        column_to_make_scatter_from_sim: str,
+        flood_scenario: BeforeOrAfterFloodScenario,
+        experiment_id: str,
+        column_to_make_scatter_from_obs: str,
 ):
     file_path = f"out\\scatter_plots_{flood_scenario.value}\\{experiment_id}\\"
     if not os.path.exists(file_path):
@@ -143,15 +143,18 @@ def create_scatter_plot(
 
 
 def plot_river_profile_from_gps_vs_simulated_data(
-    ordered_gps_points_on_profile_line: gpd.GeoDataFrame,
-    filename: str,
-    state_to_name_in_shape_file_mapping: StateToNameInShapeFileMapping,
+        ordered_gps_points_on_profile_line: gpd.GeoDataFrame,
+        filename: str,
+        state_to_name_in_shape_file_mapping: StateToNameInShapeFileMapping,
 ):
     figure = go.Figure()
     figure.add_trace(
         go.Scatter(
             x=ordered_gps_points_on_profile_line["distance"].values,
-            y=ordered_gps_points_on_profile_line[state_to_name_in_shape_file_mapping.water_depth.final_name].values,
+            y=ordered_gps_points_on_profile_line[
+                  state_to_name_in_shape_file_mapping.water_depth.final_name].values +
+              ordered_gps_points_on_profile_line[
+                  state_to_name_in_shape_file_mapping.bottom_elevation.final_name].values,
             name="simulated water surface elevation",
             mode="lines+markers",
         )

@@ -47,5 +47,19 @@ def calculate_mean_de_watering_speed_over_time(
         delta_column_name = f"{first_column_name}->{second_column_name}"
         df_to_return[delta_column_name] = np.where(all_conditions_satisfied, delta, np.nan)
         delta_column_names.append(delta_column_name)
-    df_to_return["avg_cm/h"] = df_to_return[delta_column_names].mean(axis=1, skipna=True, ) * 3600 * 100
+    mapping = create_default_state_to_name_in_shape_file_mapping(parameters.time_stamps_to_evaluate_change_on[-1])
+
+    last_evaluated_water_depth_ = mapping.water_depth.final_name
+    condition_wd_too_small = data_frame_with_time_series_in_column[last_evaluated_water_depth_] <= 0.1
+
+    df_to_return.where(condition_wd_too_small, np.nan, inplace=True, axis=0)
+
+    df_to_return["avg_cm/h"] = (
+            df_to_return[delta_column_names].mean(
+                axis=1,
+                skipna=True,
+            )
+            * 3600
+            * 100
+    )
     return df_to_return

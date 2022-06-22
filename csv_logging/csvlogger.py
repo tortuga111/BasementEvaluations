@@ -23,21 +23,29 @@ class CSVLogger:
         self._start_time = time.time()
         self._logs = deque([])
 
-    def add_entry_to_log(self, message: BaseLogEntry) -> None:
-        if not type(message) is self._type_of_message_to_log:
-            raise AssertionError(f"{message} is not of same type as {self._type_of_message_to_log}")
-        self._logs.append(message)
+    def add_entry_to_log(self, log_entry: BaseLogEntry) -> None:
+        if not type(log_entry) is self._type_of_message_to_log:
+            raise AssertionError(f"{log_entry} is not of same type as {self._type_of_message_to_log}")
+        self._logs.append(log_entry)
 
     def write_logs_as_csv_to_file(self, file_name: str) -> str:
         path = os.path.join(self._LOG_FILE_FOLDER, file_name)
         sep = ";"
         self._make_folder_for_logs_if_needed()
         with open(path, "w") as file_to_write_to:
-            file_to_write_to.write(f"{sep.join((key for key in self._logs[0].__dict__.keys()))}\n")
-            file_to_write_to.writelines(
-                f"{sep.join(str(value) for value in log.__dict__.values())}\n" for log in self._logs
-            )
+            self.__create_csv_header(file_to_write_to, sep)
+            self.__add_rows(file_to_write_to, sep)
         return path
+
+    def __add_rows(self, file_to_write_to, sep):
+        file_to_write_to.writelines(
+            f"{sep.join(str(value) for value in log.__dict__.values())}\n" for log in self._logs
+        )
+
+    def __create_csv_header(self, file_to_write_to, sep):
+        file_to_write_to.write(
+            f"{sep.join((key for key in self._type_of_message_to_log.__dict__['__dataclass_fields__'].keys()))}\n"
+        )
 
     @classmethod
     def _make_folder_for_logs_if_needed(cls):
@@ -102,6 +110,7 @@ class GoodnessOfFitForInitialWaterDepth(BaseLogEntry):
 @dataclass(frozen=True)
 class GoodnessOfFitFor3dEvaluation(BaseLogEntry):
     polygon_name: str
+    area_polygon: float
     ratio_of_eroded_area_dod: float
     ratio_of_deposited_area_dod: float
     ratio_of_eroded_area_sim: float
@@ -138,3 +147,12 @@ class ShearStress(BaseLogEntry):
     rel_area_critical_shield_stress_chezy: float
     area_guenter_criterion_chezy: float
     rel_area_guenter_criterion_chezy: float
+
+
+@dataclass(frozen=True)
+class ScenarioEvaluationHmid(BaseLogEntry):
+    time_step: float
+    wetted_area: float
+    water_depth_variability: float
+    flow_velocity_variability: float
+    hydro_morphological_index_of_diversity: float

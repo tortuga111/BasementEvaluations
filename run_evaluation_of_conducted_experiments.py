@@ -1,13 +1,13 @@
 import json
 import os
-from typing import NamedTuple, Generator, Iterable
+from typing import NamedTuple, Iterable
 
 import matplotlib.pyplot as plt
 import pandas as pd
-import plotly.graph_objects as go
 from geopandas import GeoDataFrame
 from tqdm import tqdm
 
+from all_paths import PathsToJsonWithExperimentPath
 from csv_logging.calculate_entries import (
     goodness_of_fit_for_bottom_elevation,
     goodness_of_fit_for_velocity,
@@ -21,9 +21,13 @@ from csv_logging.csvlogger import (
     GoodnessOfFitForInitialWaterDepth,
     GoodnessOfFitFor3dEvaluation,
     ShearStress,
+    ScenarioEvaluationHmid,
 )
-from evaluate_water_depth_change import calculate_mean_de_watering_speed_over_time, DeWateringSpeedCalculationParameters
-from evaluation_runner.analysis.three_dimensional import (
+from evaluation_runner.scenario_evaluation.evaluate_water_depth_change import (
+    calculate_mean_de_watering_speed_over_time,
+    DeWateringSpeedCalculationParameters,
+)
+from evaluation_runner.analysis_calibration.three_dimensional import (
     create_union_of_dod_and_simulated_dz_mesh,
     clip_mesh_with_polygons,
 )
@@ -32,13 +36,18 @@ from evaluation_runner.profiles.evaluate_profiles import (
     evaluate_points_along_profiles,
     create_scatter_plot,
 )
+from evaluation_runner.scenario_evaluation.final_scenario_evaluation_log_entries import (
+    calculate_and_log_hmid_statistics,
+)
 from evaluation_runner.scenario_evaluation.shield_stress import (
-    calculate_area_where_flow_velocity_and_water_depth_are_too_small,
+    calculate_shear_stress_coefficients,
     ParametersForShearStressEvaluation,
     calculate_and_log_shear_stress_statistics,
     create_parameters_for_shear_stress,
     select_area_where_guenter_criterion_is_reached,
     select_area_where_guenter_criterion_is_reached_chezy,
+    select_area_where_crit_shield_stress_is_reached,
+    select_area_where_crit_shield_stress_is_reached_with_chezy,
 )
 from extract_data.create_shape_files_from_simulation_results import process_h5_files_to_shape_files
 from extract_data.summarising_mesh import (
@@ -53,7 +62,7 @@ from script_for_profile_creation import create_paths
 from utils.loading import load_data_with_crs_2056
 
 
-def get_json_with_all_result_paths(path_to_all_experiments_to_evaluate: str) -> list[str]:
+def get_json_with_all_result_paths(path_to_all_experiments_to_evaluate: PathsToJsonWithExperimentPath) -> list[str]:
     with open(path_to_all_experiments_to_evaluate, "r") as json_file:
         return list(json.load(json_file))
 
@@ -65,18 +74,18 @@ def inclusive_range(start: int, stop: int, step: int) -> Iterable[int]:
 
 
 def evaluate_simulation_on_given_points(
-    path_to_all_experiments_to_evaluate: str,
-    evaluation_points: GeoDataFrame,
-    path_to_mesh: str,
-    flood_scenario: BeforeOrAfterFloodScenario,
-    path_to_dod_as_polygon: str,
-    paths_to_polygon_as_area_of_interest: tuple[str, ...],
-    path_to_folder_containing_points_with_lines: str,
-    simulation_time_in_seconds: int,
-    evaluation_parameters_for_shear_stress: ParametersForShearStressEvaluation,
-    step: int = 300,
-    last_time_stamp: int = 126_000,
+        path_to_all_experiments_to_evaluate: PathsToJsonWithExperimentPath,
+        evaluation_points: GeoDataFrame,
+        path_to_mesh: str,
+        flood_scenario: BeforeOrAfterFloodScenario,
+        path_to_dod_as_polygon: str,
+        paths_to_polygon_as_area_of_interest: tuple[str, ...],
+        path_to_folder_containing_points_with_lines: str,
+        simulation_time_in_seconds: int,
+        evaluation_parameters_for_shear_stress: ParametersForShearStressEvaluation,
+        sample_time_step_width: int,
 ):
+    logger_hmid = CSVLogger(ScenarioEvaluationHmid)
     logger_shear_stress = CSVLogger(ShearStress)
     logger_goodness_of_fit_for_bottom_elevation = CSVLogger(GoodnessOfFitForInitialBottomElevation)
     logger_goodness_of_fit_for_water_depth = CSVLogger(GoodnessOfFitForInitialWaterDepth)
@@ -92,23 +101,25 @@ def evaluate_simulation_on_given_points(
     all_paths_to_experiment_results = get_json_with_all_result_paths(path_to_all_experiments_to_evaluate)
     before_flood_mapping = create_default_state_to_name_in_shape_file_mapping(0)
     after_flood_mapping = create_default_state_to_name_in_shape_file_mapping(simulation_time_in_seconds)
-    time_steps_to_evaluate_individually = list(inclusive_range(start=0, stop=last_time_stamp, step=step))
+    time_stamps_to_evaluate_individually = list(
+        inclusive_range(start=0, stop=simulation_time_in_seconds, step=sample_time_step_width)
+    )
 
     for path in all_paths_to_experiment_results:
         experiment_id = os.path.split(path)[-1]
         resulting_geo_data_frames = process_h5_files_to_shape_files(
-            path, path_to_mesh=path_to_mesh, time_step=step, used_geomorphologic_module=False
+            path, path_to_mesh=path_to_mesh, time_step=sample_time_step_width, used_geomorphologic_module=True
         )
 
-        if do_de_watering_speed_analysis := True:
+        if do_de_watering_speed_analysis := False:
             meshes_to_unify = []
             de_watering_parameters = DeWateringSpeedCalculationParameters(
                 exclude_water_depth_above=1.0,
                 exclude_water_depth_below=0.1,
-                time_stamps_to_evaluate_change_on=time_steps_to_evaluate_individually,
+                time_stamps_to_evaluate_change_on=time_stamps_to_evaluate_individually,
             )
-            for time_step in tqdm(time_steps_to_evaluate_individually):
-                mapping_for_step = create_default_state_to_name_in_shape_file_mapping(time_step)
+            for time_stamp in tqdm(time_stamps_to_evaluate_individually):
+                mapping_for_step = create_default_state_to_name_in_shape_file_mapping(time_stamp)
                 mesh_for_this_time_step = create_mesh_from_mapped_values(resulting_geo_data_frames, mapping_for_step)
                 meshes_to_unify.append(mesh_for_this_time_step)
             meshes_to_unify.reverse()
@@ -122,50 +133,104 @@ def evaluate_simulation_on_given_points(
                 mesh_with_all_time_steps, de_watering_parameters
             )
 
-            dewatering_mesh["avg_cm/h"].hist()
-            plt.show()
-            dewatering_mesh.to_file("test_dewatering.shp")
-            return
+            condition_dewatering_speed_very_big = dewatering_mesh["avg_cm/h"] < -20
+            condition_dewatering_speed_big = (dewatering_mesh["avg_cm/h"] < -13) & (dewatering_mesh["avg_cm/h"] >= -20)
+            condition_dewatering_speed_moderate = (dewatering_mesh["avg_cm/h"] < -5) & (
+                    dewatering_mesh["avg_cm/h"] >= -13
+            )
+            condition_dewatering_speed_small = (dewatering_mesh["avg_cm/h"] < 0) & (dewatering_mesh["avg_cm/h"] >= -5)
+
+            dewatering_mesh["speed"] = None
+            dewatering_mesh.loc[condition_dewatering_speed_very_big, "speed"] = "4 very big"
+            dewatering_mesh.loc[condition_dewatering_speed_big, "speed"] = "3 big"
+            dewatering_mesh.loc[condition_dewatering_speed_moderate, "speed"] = "2 moderate"
+            dewatering_mesh.loc[condition_dewatering_speed_small, "speed"] = "1 small"
+
+            file_path = f"out\\dewatering_shape\\{experiment_id}\\"
+            if not os.path.exists(file_path):
+                os.mkdir(file_path)
+
+            dewatering_mesh.plot(column="avg_cm/h", cmap="cool", legend=True, missing_kwds={"color": "white"})
+            file_name = f"dewatering_categorized.jpg"
+            plt.savefig(file_path + file_name)
+
+            # file_name = f"dewatering.shp"
+            # dewatering_mesh.to_file(file_path + file_name)
 
         # evaluate some intermediate states without comparison:
-        if do_individual_evaluations := True:
-            for time_step in time_steps_to_evaluate_individually:
-                mapping_for_step = create_default_state_to_name_in_shape_file_mapping(time_step)
+        print(experiment_id)
+
+        if do_individual_evaluations := False:
+            for time_stamp in time_stamps_to_evaluate_individually:
+                mapping_for_step = create_default_state_to_name_in_shape_file_mapping(time_stamp)
                 mesh_for_this_time_step = create_mesh_from_mapped_values(resulting_geo_data_frames, mapping_for_step)
-                selection_where_flow_velocity_and_wd_are_too_small = (
-                    calculate_area_where_flow_velocity_and_water_depth_are_too_small(
-                        mesh_for_this_time_step,
+                selection_where_flow_velocity_and_wd_are_too_small = calculate_shear_stress_coefficients(
+                    mesh_for_this_time_step,
+                    evaluation_parameters=evaluation_parameters_for_shear_stress,
+                    state_to_name_in_shape_file_mapping=mapping_for_step,
+                )
+
+                # selection_where_flow_velocity_and_wd_are_too_small.to_file(f"out\\shapes_shear_stress\\shear_stress{time_stamp}.gpkg", driver="GPKG")
+
+                if do_shear_stress := False:
+                    logger_shear_stress = calculate_and_log_shear_stress_statistics(
+                        logger_shear_stress=logger_shear_stress,
+                        time_step=time_stamp,
                         evaluation_parameters=evaluation_parameters_for_shear_stress,
+                        experiment_id=experiment_id,
+                        selection_where_wd_and_v_too_small=selection_where_flow_velocity_and_wd_are_too_small,
+                    )
+
+                    area_where_critical_shield_stress_is_reached = select_area_where_crit_shield_stress_is_reached(
+                        selection_where_wd_and_v_too_small=selection_where_flow_velocity_and_wd_are_too_small,
+                        evaluation_parameters=evaluation_parameters_for_shear_stress,
+                    )
+
+                    area_where_critical_shield_stress_is_reached.plot()
+                    plt.savefig(f"out\\plots_shieldstress\\shield{time_stamp}.jpg")
+
+                    area_where_critical_shield_stress_is_reached_chezy = (
+                        select_area_where_crit_shield_stress_is_reached_with_chezy(
+                            selection_where_wd_and_v_too_small=selection_where_flow_velocity_and_wd_are_too_small,
+                            evaluation_parameters=evaluation_parameters_for_shear_stress,
+                        )
+                    )
+
+                    area_where_critical_shield_stress_is_reached_chezy.plot()
+                    plt.savefig(f"out\\plots_shieldstress\\shield{time_stamp}_chezy.jpg")
+
+                    area_where_guenter_criterion_is_reached = select_area_where_guenter_criterion_is_reached(
+                        selection_where_wd_and_v_too_small=selection_where_flow_velocity_and_wd_are_too_small,
+                        evaluation_parameters=evaluation_parameters_for_shear_stress,
+                    )
+
+                    area_where_guenter_criterion_is_reached.plot()
+                    plt.savefig(f"out\\plots_shieldstress\\guenter{time_stamp}.jpg")
+
+                    area_where_guenter_criterion_is_reached_chezy = (
+                        select_area_where_guenter_criterion_is_reached_chezy(
+                            selection_where_wd_and_v_too_small=selection_where_flow_velocity_and_wd_are_too_small,
+                            evaluation_parameters=evaluation_parameters_for_shear_stress,
+                        )
+                    )
+                    area_where_guenter_criterion_is_reached_chezy.plot()
+                    plt.savefig(f"out\\plots_shieldstress\\guenter{time_stamp}_chezy.jpg")
+
+                if hmid := False:
+                    logger_hmid = calculate_and_log_hmid_statistics(
+                        logger_hmid=logger_hmid,
+                        experiment_id=experiment_id,
+                        evaluation_parameters=evaluation_parameters_for_shear_stress,
+                        time_step=time_stamp,
+                        mesh_with_simulation_state=mesh_for_this_time_step,
                         state_to_name_in_shape_file_mapping=mapping_for_step,
                     )
-                )
 
-                # selection_where_flow_velocity_and_wd_are_too_small.to_file(f"out\\shapes_shear_stress\\shear_stress{time_step}.shp")
-
-                logger_shear_stress = calculate_and_log_shear_stress_statistics(
-                    logger_shear_stress=logger_shear_stress,
-                    time_step=time_step,
-                    evaluation_parameters=evaluation_parameters_for_shear_stress,
-                    experiment_id=experiment_id,
-                    selection_where_wd_and_v_too_small=selection_where_flow_velocity_and_wd_are_too_small,
-                )
-
-                area_where_guenter_criterion_is_reached = select_area_where_guenter_criterion_is_reached(
-                    selection_where_wd_and_v_too_small=selection_where_flow_velocity_and_wd_are_too_small,
-                    evaluation_parameters=evaluation_parameters_for_shear_stress,
-                )
-
-                area_where_guenter_criterion_is_reached.plot()
-                plt.savefig(f"out\\plots_shieldstress\\crit_shield_stress{time_step}.jpg")
-
-                area_where_guenter_criterion_is_reached_chezy = select_area_where_guenter_criterion_is_reached_chezy(
-                    selection_where_wd_and_v_too_small=selection_where_flow_velocity_and_wd_are_too_small,
-                    evaluation_parameters=evaluation_parameters_for_shear_stress,
-                )
-                area_where_guenter_criterion_is_reached_chezy.plot()
-                plt.savefig(f"out\\plots_shieldstress\\crit_shield_stress{time_step}_chezy.jpg")
+                    # selection_where_flow_velocity_and_wd_are_too_small.plot(column=f"fwd_{time_stamp}", cmap="Blues")
+                    # plt.savefig("test.jpg")
 
             write_log_for_shear_stress(logger_shear_stress, flood_scenario=flood_scenario)
+            write_log_for_hmid(logger_hmid, flood_scenario=flood_scenario)
 
         #
         #
@@ -181,7 +246,7 @@ def evaluate_simulation_on_given_points(
         valid_mapping = derive_columns_to_lookup_from_flood_scenario(
             before_flood_mapping, after_flood_mapping, flood_scenario
         )
-        if do_points := False:
+        if do_points := True:
             renamed_updated_gps_points = assign_requested_values_from_summarising_mesh_to_point(
                 columns_to_lookup=[pair.final_name for pair in valid_mapping],
                 mesh_with_all_results=before_and_after_flood_mesh,
@@ -201,7 +266,7 @@ def evaluate_simulation_on_given_points(
                 flood_scenario=flood_scenario,
             )
 
-        if do_profiles := False:
+        if do_profiles := True:
             evaluate_points_along_profiles(
                 mesh_with_all_results=before_and_after_flood_mesh,
                 flood_scenario=flood_scenario,
@@ -210,7 +275,7 @@ def evaluate_simulation_on_given_points(
                 experiment_id=experiment_id,
             )
 
-        if do_polygons := False:
+        if do_polygons := True:
             union_of_dod_and_simulated_dz_mesh = create_union_of_dod_and_simulated_dz_mesh(
                 path_to_dod_as_polygon=path_to_dod_as_polygon,
                 mesh_with_all_results=before_and_after_flood_mesh,
@@ -250,7 +315,7 @@ def evaluate_simulation_on_given_points(
 
 
 def derive_columns_to_lookup_from_flood_scenario(
-    before_flood_mapping, after_flood_mapping, flood_scenario
+        before_flood_mapping, after_flood_mapping, flood_scenario
 ) -> StateToNameInShapeFileMapping:
     if flood_scenario == BeforeOrAfterFloodScenario.bf_2020:
         return before_flood_mapping
@@ -267,10 +332,10 @@ class GpsPointsLoggerTriple(NamedTuple):
 
 
 def calculate_and_log_3d_statistics_for_polygons(
-    logger_goodness_of_fit_for_three_d_evaluation: CSVLogger,
-    union_of_dod_and_simulated_dz_mesh: GeoDataFrame,
-    experiment_id: str,
-    polygon_name,
+        logger_goodness_of_fit_for_three_d_evaluation: CSVLogger,
+        union_of_dod_and_simulated_dz_mesh: GeoDataFrame,
+        experiment_id: str,
+        polygon_name,
 ) -> CSVLogger:
     logger_goodness_of_fit_for_three_d_evaluation.add_entry_to_log(
         goodness_of_fit_for_three_d_analysis(union_of_dod_and_simulated_dz_mesh, experiment_id, polygon_name)
@@ -279,18 +344,18 @@ def calculate_and_log_3d_statistics_for_polygons(
 
 
 def calculate_and_log_statistics_for_gps_points(
-    renamed_updated_gps_points: GeoDataFrame,
-    logger_triple: GpsPointsLoggerTriple,
-    experiment_id,
-    flood_scenario,
-    mapping: StateToNameInShapeFileMapping,
+        renamed_updated_gps_points: GeoDataFrame,
+        logger_triple: GpsPointsLoggerTriple,
+        experiment_id,
+        flood_scenario,
+        mapping: StateToNameInShapeFileMapping,
 ) -> GpsPointsLoggerTriple:
     water_depth_ = mapping.water_depth.final_name
     velocity_ = mapping.flow_velocity.final_name
     bottom_elevation_ = mapping.bottom_elevation.final_name
 
     renamed_updated_gps_points["wd_sim_gps"] = (
-        renamed_updated_gps_points[water_depth_] - renamed_updated_gps_points["WT_m_"]
+            renamed_updated_gps_points[water_depth_] - renamed_updated_gps_points["WT_m_"]
     )
     gps_points_with_velocity: GeoDataFrame = (
         renamed_updated_gps_points.loc[renamed_updated_gps_points["Vel__m_s_"] > 0, :]
@@ -328,8 +393,8 @@ def calculate_and_log_statistics_for_gps_points(
 
 
 def write_logs_for_gps_points(
-    logger_triple: GpsPointsLoggerTriple,
-    flood_scenario: BeforeOrAfterFloodScenario,
+        logger_triple: GpsPointsLoggerTriple,
+        flood_scenario: BeforeOrAfterFloodScenario,
 ) -> None:
     logger_triple.logger_goodness_of_fit_for_velocity.write_logs_as_csv_to_file(
         f"log_goodness_of_fit_{flood_scenario}_velocities.csv"
@@ -343,7 +408,7 @@ def write_logs_for_gps_points(
 
 
 def write_log_for_3d_evaluation(
-    logger_goodness_of_fit_for_three_d_evaluation: CSVLogger, flood_scenario: BeforeOrAfterFloodScenario
+        logger_goodness_of_fit_for_three_d_evaluation: CSVLogger, flood_scenario: BeforeOrAfterFloodScenario
 ) -> None:
     logger_goodness_of_fit_for_three_d_evaluation.write_logs_as_csv_to_file(
         f"log_three_d_statistics_{flood_scenario}.csv"
@@ -351,16 +416,25 @@ def write_log_for_3d_evaluation(
 
 
 def write_log_for_shear_stress(logger_shear_stress: CSVLogger, flood_scenario: BeforeOrAfterFloodScenario) -> None:
-    logger_shear_stress.write_logs_as_csv_to_file("log_shear_stress.csv")
+    logger_shear_stress.write_logs_as_csv_to_file("log_shear_stress_coarse_mesh.csv")
+
+
+def write_log_for_hmid(logger_hmid: CSVLogger, flood_scenario: BeforeOrAfterFloodScenario) -> None:
+    logger_hmid.write_logs_as_csv_to_file("log_hmid_input_01_coarse_mesh.csv")
 
 
 def main():
     flood_scenario = BeforeOrAfterFloodScenario.af_2020
-    simulation_time_in_seconds = 126000
+    simulation_time_in_seconds = 90000
+    sample_time_step_width = 300
+
+    paths_to_json_with_experiment_paths = PathsToJsonWithExperimentPath.calibration_experiments_with_different_sediment_depths_mesh2
+
 
     path_to_gps_points = create_paths(flood_scenario).path_to_gps_points
     # old:path_to_mesh = r"C:\Users\nflue\Documents\Masterarbeit\02_Data\04_Model_220309\04_Model\01_input_data_old\BF2020_Mesh\new_mesh_all_inputs\bathymetry_and_mesh_BF2020_computational-mesh.2dm"
-    path_to_mesh = r"C:\Users\nflue\Documents\Masterarbeit\02_Data\04_Model_220511\04_Model\01_input_data\BF2020_Mesh\new_mesh_all_inputs\Project1_computational-mesh.2dm"
+    # path_to_mesh = r"C:\Users\nflue\Documents\Masterarbeit\02_Data\04_Model_220511\04_Model\01_input_data\BF2020_Mesh\new_mesh_all_inputs\Project1_computational-mesh.2dm"
+    path_to_mesh = r"C:\Users\nflue\Documents\Masterarbeit\02_Data\04_Model_220620\04_Model\01_input_data\BF2020_Mesh\new_mesh_finer_01\Project1_computational-mesh.2dm"
 
     paths_to_polygon_as_area_of_interest = (
         "C:\\Users\\nflue\\Documents\\Masterarbeit\\02_Data\\05_evaluation\\areas_to_compare_dod_bf_and_af\\1.shp",
@@ -391,15 +465,12 @@ def main():
     )
     path_to_folder_containing_points_with_lines = "C:\\Users\\nflue\\Documents\\Masterarbeit\\03_Projects\\MasterThesis\\BasementPreparation\\river_profiles_from_bathymetry"
 
-    paths_to_json_with_experiment_paths = (
-        r"C:\Users\nflue\Desktop\experiments\scenarios_hydraulic\test_scenarios\paths_to_experiments.json"
-    )
 
     evaluation_parameters_for_shear_stress = create_parameters_for_shear_stress()
 
     evaluate_simulation_on_given_points(
-        paths_to_json_with_experiment_paths,
-        load_data_with_crs_2056(path_to_gps_points),
+        path_to_all_experiments_to_evaluate=paths_to_json_with_experiment_paths,
+        evaluation_points=load_data_with_crs_2056(path_to_gps_points),
         path_to_mesh=path_to_mesh,
         flood_scenario=flood_scenario,
         paths_to_polygon_as_area_of_interest=paths_to_polygon_as_area_of_interest,
@@ -407,6 +478,7 @@ def main():
         path_to_folder_containing_points_with_lines=path_to_folder_containing_points_with_lines,
         simulation_time_in_seconds=simulation_time_in_seconds,
         evaluation_parameters_for_shear_stress=evaluation_parameters_for_shear_stress,
+        sample_time_step_width=sample_time_step_width,
     )
 
 

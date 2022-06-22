@@ -25,7 +25,7 @@ def create_parameters_for_shear_stress() -> ParametersForShearStressEvaluation:
         density_water=1000,
         density_gravel=2650,
         gravity=9.81,
-        k_strickler=34,
+        k_strickler=10,
         threshold_water_depth=0.01,
         threshold_flow_velocity=0.01,
         diameter_90=0.113,
@@ -38,30 +38,31 @@ def _calculate_guenter_criterion(diameter_90: float, diameter_50: float) -> floa
     return 0.05 * ((diameter_90 / diameter_50) ** (2 / 3))
 
 
-def calculate_area_where_flow_velocity_and_water_depth_are_too_small(
+def calculate_shear_stress_coefficients(
     mesh_with_simulation_state: gpd.GeoDataFrame,
     evaluation_parameters: ParametersForShearStressEvaluation,
     state_to_name_in_shape_file_mapping: StateToNameInShapeFileMapping,
 ) -> gpd.GeoDataFrame:
+    selection_where_wd_and_v_too_small = calculate_area_where_flow_velocity_and_water_depth_are_too_small(
+        evaluation_parameters, mesh_with_simulation_state, state_to_name_in_shape_file_mapping
+    )
+
     water_depth_ = state_to_name_in_shape_file_mapping.water_depth.final_name
     velocity_ = state_to_name_in_shape_file_mapping.flow_velocity.final_name
     chezy_ = state_to_name_in_shape_file_mapping.chezy_coefficient.final_name
-    condition_wd_and_v_too_small = (
-        mesh_with_simulation_state[velocity_] >= evaluation_parameters.threshold_flow_velocity
-    ) & (mesh_with_simulation_state[water_depth_] >= evaluation_parameters.threshold_water_depth)
-    small: GeoDataFrame = mesh_with_simulation_state.loc[condition_wd_and_v_too_small]
-    selection_where_wd_and_v_too_small = small.copy()
 
     _constant_component = (
         evaluation_parameters.density_water
         * evaluation_parameters.gravity
         * (1 / evaluation_parameters.k_strickler) ** 2
     )
+
     dimensionless_cf_squared_with_power_law = (
         selection_where_wd_and_v_too_small[water_depth_] ** (1 / 3)
         / evaluation_parameters.gravity
         * (evaluation_parameters.k_strickler) ** 2
     )
+
     selection_where_wd_and_v_too_small["tau"] = None
     selection_where_wd_and_v_too_small["tau"] = (
         evaluation_parameters.density_water * selection_where_wd_and_v_too_small[velocity_] ** 2
@@ -86,6 +87,19 @@ def calculate_area_where_flow_velocity_and_water_depth_are_too_small(
         * evaluation_parameters.diameter_50
     )
     return selection_where_wd_and_v_too_small
+
+
+def calculate_area_where_flow_velocity_and_water_depth_are_too_small(
+    evaluation_parameters, mesh_with_simulation_state, state_to_name_in_shape_file_mapping
+) -> GeoDataFrame:
+    water_depth_ = state_to_name_in_shape_file_mapping.water_depth.final_name
+    velocity_ = state_to_name_in_shape_file_mapping.flow_velocity.final_name
+
+    condition_wd_and_v_too_small = (
+        mesh_with_simulation_state[velocity_] >= evaluation_parameters.threshold_flow_velocity
+    ) & (mesh_with_simulation_state[water_depth_] >= evaluation_parameters.threshold_water_depth)
+    selection_where_wd_and_v_too_small: GeoDataFrame = mesh_with_simulation_state.loc[condition_wd_and_v_too_small]
+    return selection_where_wd_and_v_too_small.copy()
 
 
 def select_area_where_guenter_criterion_is_reached(
@@ -122,19 +136,19 @@ def select_area_where_crit_tau_is_reached(selection_where_wd_and_v_too_small: gp
 def select_area_where_crit_shield_stress_is_reached(
     selection_where_wd_and_v_too_small: gpd.GeoDataFrame, evaluation_parameters: ParametersForShearStressEvaluation
 ) -> gpd.GeoDataFrame:
-    selection_where_theta_critical_is_reached_chezy: GeoDataFrame = selection_where_wd_and_v_too_small.loc[
+    selection_where_theta_critical_is_reached: GeoDataFrame = selection_where_wd_and_v_too_small.loc[
         selection_where_wd_and_v_too_small["theta"] >= evaluation_parameters.critical_shield_stress
     ]
-    return selection_where_theta_critical_is_reached_chezy
+    return selection_where_theta_critical_is_reached
 
 
 def select_area_where_crit_shield_stress_is_reached_with_chezy(
     selection_where_wd_and_v_too_small: gpd.GeoDataFrame, evaluation_parameters: ParametersForShearStressEvaluation
 ) -> gpd.GeoDataFrame:
-    selection_where_theta_critical_is_reached: GeoDataFrame = selection_where_wd_and_v_too_small.loc[
+    selection_where_theta_critical_is_reached_chezy: GeoDataFrame = selection_where_wd_and_v_too_small.loc[
         selection_where_wd_and_v_too_small["theta_chez"] >= evaluation_parameters.critical_shield_stress
     ]
-    return selection_where_theta_critical_is_reached
+    return selection_where_theta_critical_is_reached_chezy
 
 
 def calculate_and_log_shear_stress_statistics(
