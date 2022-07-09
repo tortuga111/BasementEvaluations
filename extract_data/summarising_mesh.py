@@ -41,6 +41,7 @@ def create_mesh_from_mapped_values(
 ) -> gpd.GeoDataFrame:
     bottom_elevation = all_result_shapes.bottom_elevation
     mesh_with_result = gpd.GeoDataFrame(geometry=bottom_elevation.geometry, crs=bottom_elevation.crs)
+    mesh_with_result["material_index"] = bottom_elevation["material_index"]
     assert mesh_with_result.crs == 2056
     try:
         return calculate_mesh_entries_at_a_given_time(all_result_shapes, mapping, mesh_with_result)

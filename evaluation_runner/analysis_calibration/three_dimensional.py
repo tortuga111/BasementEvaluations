@@ -13,19 +13,19 @@ def create_union_of_dod_and_simulated_dz_mesh(
     dod_as_polygon = load_data_with_crs_2056(path_to_dod_as_polygon)
 
     mesh_with_all_results["dz_sim"] = None
-    mesh_with_all_results.loc[mesh_with_all_results["delta_z"] > 0.1, "dz_sim"] = "deposition"
+    mesh_with_all_results.loc[mesh_with_all_results["delta_z"] > 0.15, "dz_sim"] = "deposition"
 
-    mesh_with_all_results.loc[mesh_with_all_results["delta_z"] < -0.1, "dz_sim"] = "erosion"
+    mesh_with_all_results.loc[mesh_with_all_results["delta_z"] < -0.15, "dz_sim"] = "erosion"
 
-    condition = (mesh_with_all_results["delta_z"] >= -0.1) & (mesh_with_all_results["delta_z"] <= 0.1)
+    condition = (mesh_with_all_results["delta_z"] >= -0.15) & (mesh_with_all_results["delta_z"] <= 0.15)
     mesh_with_all_results.loc[condition, "dz_sim"] = "stable"
 
     dod_as_polygon["dz_dod"] = None
-    dod_as_polygon.loc[dod_as_polygon["deltaz_dod"] > 0.1, "dz_dod"] = "deposition"
+    dod_as_polygon.loc[dod_as_polygon["deltaz_dod"] > 0.15, "dz_dod"] = "deposition"
 
-    dod_as_polygon.loc[dod_as_polygon["deltaz_dod"] < -0.1, "dz_dod"] = "erosion"
+    dod_as_polygon.loc[dod_as_polygon["deltaz_dod"] < -0.15, "dz_dod"] = "erosion"
 
-    condition_dod = (dod_as_polygon["deltaz_dod"] >= -0.1) & (dod_as_polygon["deltaz_dod"] <= 0.1)
+    condition_dod = (dod_as_polygon["deltaz_dod"] >= -0.15) & (dod_as_polygon["deltaz_dod"] <= 0.15)
     dod_as_polygon.loc[condition_dod, "dz_dod"] = "stable"
 
     union_of_dod_and_simulated_dz_mesh = gpd.overlay(
@@ -56,6 +56,11 @@ def create_union_of_dod_and_simulated_dz_mesh(
         union_of_dod_and_simulated_dz_mesh.area * union_of_dod_and_simulated_dz_mesh["deltaz_dod"]
     )
 
+    union_of_dod_and_simulated_dz_mesh["abs_me"] = (
+        union_of_dod_and_simulated_dz_mesh["delta_z"] - union_of_dod_and_simulated_dz_mesh["deltaz_dod"]
+    )
+
+    del union_of_dod_and_simulated_dz_mesh["geometrygeometry"]
     return union_of_dod_and_simulated_dz_mesh
 
 

@@ -126,9 +126,11 @@ def select_area_where_guenter_criterion_is_reached_chezy(
     return selection_where_guenter_criterion_is_reached_chezy
 
 
-def select_area_where_crit_tau_is_reached(selection_where_wd_and_v_too_small: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+def select_area_where_crit_tau_is_reached(
+    selection_where_wd_and_v_too_small: gpd.GeoDataFrame, critical_value: float
+) -> gpd.GeoDataFrame:
     selection_where_critical_tau_is_reached: GeoDataFrame = selection_where_wd_and_v_too_small.loc[
-        selection_where_wd_and_v_too_small["tau"] >= 50
+        selection_where_wd_and_v_too_small["tau_chezy"] >= critical_value
     ]
     return selection_where_critical_tau_is_reached
 
@@ -180,11 +182,33 @@ def calculate_entries_for_shear_stress_log(
         time_step=time_step,
         discharge=time_step / 270,
         wetted_area=sum(selection_where_wd_and_v_too_small.area),
-        abs_area_tau_more_than_50Nm=select_area_where_crit_tau_is_reached(
-            selection_where_wd_and_v_too_small
+        abs_area_tau_more_than_10Nm=select_area_where_crit_tau_is_reached(
+            selection_where_wd_and_v_too_small, 10
         ).area.sum(),
-        rel_area_tau_more_than_50Nm=select_area_where_crit_tau_is_reached(selection_where_wd_and_v_too_small).area.sum()
-        / selection_where_wd_and_v_too_small.area.sum(),
+        abs_area_tau_more_than_20Nm=select_area_where_crit_tau_is_reached(
+            selection_where_wd_and_v_too_small, 20
+        ).area.sum(),
+        abs_area_tau_more_than_30Nm=select_area_where_crit_tau_is_reached(
+            selection_where_wd_and_v_too_small, 30
+        ).area.sum(),
+        abs_area_tau_more_than_40Nm=select_area_where_crit_tau_is_reached(
+            selection_where_wd_and_v_too_small, 40
+        ).area.sum(),
+        abs_area_tau_more_than_50Nm=select_area_where_crit_tau_is_reached(
+            selection_where_wd_and_v_too_small, 50
+        ).area.sum(),
+        abs_area_tau_more_than_60Nm=select_area_where_crit_tau_is_reached(
+            selection_where_wd_and_v_too_small, 60
+        ).area.sum(),
+        abs_area_tau_more_than_70Nm=select_area_where_crit_tau_is_reached(
+            selection_where_wd_and_v_too_small, 70
+        ).area.sum(),
+        abs_area_tau_more_than_80Nm=select_area_where_crit_tau_is_reached(
+            selection_where_wd_and_v_too_small, 80
+        ).area.sum(),
+        abs_area_tau_more_than_90Nm=select_area_where_crit_tau_is_reached(
+            selection_where_wd_and_v_too_small, 90
+        ).area.sum(),
         abs_area_critical_shield_stress=select_area_where_crit_shield_stress_is_reached(
             selection_where_wd_and_v_too_small,
             evaluation_parameters=evaluation_parameters,

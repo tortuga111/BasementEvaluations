@@ -22,8 +22,8 @@ class DeWateringSpeedCalculationParameters(NamedTuple):
 
 
 def calculate_mean_de_watering_speed_over_time(
-        data_frame_with_time_series_in_column: gpd.GeoDataFrame,
-        parameters: DeWateringSpeedCalculationParameters,
+    data_frame_with_time_series_in_column: gpd.GeoDataFrame,
+    parameters: DeWateringSpeedCalculationParameters,
 ) -> gpd.GeoDataFrame:
     df_to_return = gpd.GeoDataFrame(
         geometry=data_frame_with_time_series_in_column.geometry, crs=data_frame_with_time_series_in_column.crs
@@ -33,14 +33,14 @@ def calculate_mean_de_watering_speed_over_time(
     time_deltas = (second - first for first, second in pairwise(parameters.time_stamps_to_evaluate_change_on))
     for (first_column_name, second_column_name), time_delta in zip(pairwise(column_names), time_deltas):
         delta = (
-                        data_frame_with_time_series_in_column[second_column_name]
-                        - data_frame_with_time_series_in_column[first_column_name]
-                ) / time_delta
+            data_frame_with_time_series_in_column[second_column_name]
+            - data_frame_with_time_series_in_column[first_column_name]
+        ) / time_delta
         initially_not_too_low = (
-                data_frame_with_time_series_in_column[first_column_name] > parameters.exclude_water_depth_below
+            data_frame_with_time_series_in_column[first_column_name] > parameters.exclude_water_depth_below
         )
         afterwards_not_too_high = (
-                data_frame_with_time_series_in_column[second_column_name] < parameters.exclude_water_depth_above
+            data_frame_with_time_series_in_column[second_column_name] < parameters.exclude_water_depth_above
         )
         is_decreasing = delta < 0
         all_conditions_satisfied = initially_not_too_low * afterwards_not_too_high * is_decreasing
@@ -55,11 +55,11 @@ def calculate_mean_de_watering_speed_over_time(
     df_to_return.where(condition_wd_too_small, np.nan, inplace=True, axis=0)
 
     df_to_return["avg_cm/h"] = (
-            df_to_return[delta_column_names].mean(
-                axis=1,
-                skipna=True,
-            )
-            * 3600
-            * 100
+        df_to_return[delta_column_names].mean(
+            axis=1,
+            skipna=True,
+        )
+        * 3600
+        * 100
     )
     return df_to_return

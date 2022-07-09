@@ -137,8 +137,15 @@ class ShearStress(BaseLogEntry):
     time_step: float
     discharge: float
     wetted_area: float
+    abs_area_tau_more_than_10Nm: float
+    abs_area_tau_more_than_20Nm: float
+    abs_area_tau_more_than_30Nm: float
+    abs_area_tau_more_than_40Nm: float
     abs_area_tau_more_than_50Nm: float
-    rel_area_tau_more_than_50Nm: float
+    abs_area_tau_more_than_60Nm: float
+    abs_area_tau_more_than_70Nm: float
+    abs_area_tau_more_than_80Nm: float
+    abs_area_tau_more_than_90Nm: float
     abs_area_critical_shield_stress: float
     rel_area_critical_shield_stress: float
     area_guenter_criterion: float

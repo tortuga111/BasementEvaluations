@@ -1,3 +1,8 @@
+import os
+import pathlib
+import pickle
+
+import geopandas as gpd
 import numpy as np
 import pandas as pd
 from plotly import graph_objects as go
@@ -24,28 +29,85 @@ def create_boxplot(three_dimensional_results):
         group_nr += 1
         fig.add_trace(
             go.Box(
-                x=[group_nr - 0.25] * len(group),
+                x=[group_nr - 0.15] * len(group),
+                # x=group["experiment_id"],
                 y=group["eroded_volume_per_area_abs_error"],
-                name=str(group_name)[:13],
-                marker_color="indianred",
+                # name=str(group_name)[:13],
+                name="erosion",
+                marker_color="#D41159",
                 hoverinfo="name",
+                width=0.25,
             )
         )
         fig.add_trace(
             go.Box(
-                x=[group_nr + 0.25] * len(group),
+                x=[group_nr + 0.15] * len(group),
+                # x=group["experiment_id"],
                 y=group["deposited_volume_per_area_abs_error"],
-                name=str(group_name)[:13] + "#",
-                marker_color="lightseagreen",
+                # name=str(group_name)[:13] + "#",
+                name="deposition",
+                marker_color="#1A85FF",
                 hoverinfo="name",
+                width=0.3,
             )
         )
     fig.update_layout(legend=dict(yanchor="bottom", y=0.01, xanchor="right", x=0.99))
+    fig.update_layout(
+        autosize=False,
+        margin=dict(l=1, r=1, b=1, t=1, pad=4),
+        paper_bgcolor="LightSteelBlue",
+        font=dict(
+            size=20,
+        ),
+        showlegend=True,
+    )
 
     # fig.update_layout(legend=go.layout.Legend(yanchor="top", xanchor="left",
     # x=1, y=1
     #                              ))
+    fig.write_image(
+        "boxplot_3D_analysis.svg",
+        format="svg",
+        width=1500,
+        height=1000,
+        scale=2,
+    )
+    # fig.update_traces(quartilemethod="exclusive")  # or "inclusive", or "linear" by default
+    fig.show()
 
+
+def create_boxplot_for_gps_points(two_dimensional_results):
+    fig = go.Figure()
+    group_nr = 0
+    for group_name, group in two_dimensional_results.groupby("filename"):
+        group_nr += 1
+        fig.add_trace(
+            go.Box(
+                x=[group_nr] * len(group),
+                y=group["wd_sim_gps"],
+                # name=str(group_name)[:13],
+                name="erosion",
+                marker_color="#D41159",
+                hoverinfo="name",
+                width=0.25,
+                showlegend=False,
+            )
+        )
+
+    # fig.update_layout(legend=dict(yanchor="bottom", y=0.01, xanchor="right", x=0.99))
+    fig.update_layout(
+        autosize=False,
+        margin=dict(l=1, r=1, b=1, t=1, pad=4),
+        paper_bgcolor="LightSteelBlue",
+        font=dict(
+            size=30,
+        ),
+    )
+
+    # fig.update_layout(legend=go.layout.Legend(yanchor="top", xanchor="left",
+    # x=1, y=1
+    #                              ))
+    fig.write_image("boxplot_1D_analysis.svg", format="svg", width=1500, height=1000, scale=2)
     # fig.update_traces(quartilemethod="exclusive")  # or "inclusive", or "linear" by default
     fig.show()
 
@@ -90,8 +152,17 @@ def main():
     # calculate goodness of fit parameters for volumes:
     calculate_goodness_of_fit_parameters_for_three_dimensional(three_dimensional_results)
 
-    if stop := False:
-        return
+    all_dataframes = []
+    directory = "out\\gps_points_calibration"
+    for filepath in pathlib.Path(directory).glob("**/*"):
+        with open(filepath, "rb") as pickled:
+            gps_points: gpd.GeoDataFrame = pickle.load(pickled)
+            gps_points["filename"] = filepath.name
+            all_dataframes.append(gps_points)
+
+    combined = pd.concat(all_dataframes, axis=0).reset_index(drop=True)
+
+    create_boxplot_for_gps_points(combined)
 
 
 if __name__ == "__main__":

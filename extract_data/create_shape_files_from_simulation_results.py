@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import py2dm
 from geopandas import GeoDataFrame
+from py2dm import Element3T
 from shapely.geometry import Polygon
 from tqdm import tqdm
 
@@ -65,21 +66,29 @@ def process_h5_files_to_shape_files(
     if not os.path.exists(path_to_results):
         os.mkdir(path_to_results)
     triangle_polygons = []
+    triangle_material_index = []
     with py2dm.Reader(path_to_mesh) as mesh:
-        nodes = {node.id: node for i, node in enumerate(mesh.nodes)}
+        nodes = {node.id: node for node in mesh.nodes}
         for element in tqdm(mesh.elements):
+            element: Element3T
             point_indices = element.nodes
             triangle_polygons.append(Polygon([nodes[point_index].pos for point_index in point_indices]))
-    base_data_frame = GeoDataFrame(geometry=triangle_polygons, crs=2056)
+            assert isinstance(element.materials, tuple)
+            assert len(element.materials) == 2
+            assert isinstance(element.materials[0], int) and isinstance(element.materials[1], float)
+            triangle_material_index.append(element.materials[0])
+    base_data_frame = GeoDataFrame(
+        geometry=triangle_polygons,
+        data={"index": list(range(len(triangle_polygons))), "material_index": triangle_material_index},
+        crs=2056,
+    )
 
     with change_back_to_original_wd_afterwards(path_to_results):
         h5_path = os.path.join(path_to_root_directory, GlobalConstants.results_h5_file_name)
         h5_results_data = h5py.File(h5_path, "r")
 
         hydraulic_state = append_time_series_data_to_geo_data_frame(
-            base_data_frame,
-            h5_results_data["RESULTS/CellsAll/HydState"],
-            ["Value", "DX", "DY"],
+            base_data_frame, h5_results_data["RESULTS/CellsAll/HydState"], ["Value", "DX", "DY"]
         )
         h5_path = os.path.join(path_to_root_directory, "results_aux.h5")
         h5_auxiliary_data = h5py.File(h5_path, "r")
