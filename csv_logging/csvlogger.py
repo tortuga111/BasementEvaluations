@@ -146,10 +146,7 @@ class ShearStress(BaseLogEntry):
     abs_area_tau_more_than_70Nm: float
     abs_area_tau_more_than_80Nm: float
     abs_area_tau_more_than_90Nm: float
-    abs_area_critical_shield_stress: float
-    rel_area_critical_shield_stress: float
-    area_guenter_criterion: float
-    rel_area_guenter_criterion: float
+    abs_area_tau_more_than_D90: float
     abs_area_critical_shield_stress_chezy: float
     rel_area_critical_shield_stress_chezy: float
     area_guenter_criterion_chezy: float

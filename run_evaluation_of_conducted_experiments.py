@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from geopandas import GeoDataFrame
 from tqdm import tqdm
+from plotly import graph_objects as go
 
 from all_paths import PathsToJsonWithExperimentPath
 from csv_logging.calculate_entries import (
@@ -50,13 +51,12 @@ from evaluation_runner.scenario_evaluation.shield_stress import (
     ParametersForShearStressEvaluation,
     calculate_and_log_shear_stress_statistics,
     create_parameters_for_shear_stress,
-    select_area_where_guenter_criterion_is_reached,
     select_area_where_guenter_criterion_is_reached_chezy,
-    select_area_where_crit_shield_stress_is_reached,
-    select_area_where_crit_shield_stress_is_reached_with_chezy,
+    select_area_where_crit_shield_stress_is_reached_with_chezy, select_area_where_crit_tau_is_reached,
 )
 from evaluation_runner.scenario_evaluation.visualizations_shear_stress import \
     another_function_that_will_sexually_embarrass_me
+from tools.figure_generator import create_figure_if_none_given
 from extract_data.create_shape_files_from_simulation_results import process_h5_files_to_shape_files
 from extract_data.summarising_mesh import (
     create_default_state_to_name_in_shape_file_mapping,
@@ -104,6 +104,7 @@ def _map_material_index_to_name(index: int) -> str:
     raise NotImplementedError(index)
 
 
+
 def the_plot_that_forces_me_to_wear_sexy_stuff(
     selection_where_flow_velocity_and_wd_are_too_small: GeoDataFrame, tau_bins: list[float]
 ) -> None:
@@ -111,9 +112,7 @@ def the_plot_that_forces_me_to_wear_sexy_stuff(
     _gap_between_groups: float = 2.5
     _classes_per_group: int = len(tau_bins)
 
-    from plotly import graph_objects as go
-
-    fig = go.Figure()
+    fig = create_figure_if_none_given()
 
     selection_where_flow_velocity_and_wd_are_too_small[
         "material_name"
@@ -124,7 +123,7 @@ def the_plot_that_forces_me_to_wear_sexy_stuff(
         yaxis=dict(title_text="Area"),
         barmode="stack",
     )
-    color_map = {"vegetation": "green", "water": "blue", "gravel": "grey"}
+    color_map = {"water": "blue", "vegetation": "green", "gravel": "grey"}
 
     selection_where_flow_velocity_and_wd_are_too_small["tau_chezy_bin"] = pd.cut(
         selection_where_flow_velocity_and_wd_are_too_small["tau_chezy"], retbins=True, bins=tau_bins
@@ -183,7 +182,12 @@ def the_plot_that_forces_me_to_wear_sexy_stuff(
             text=[str(round(i[1], 2)) for i in total_at_this_position],
             textposition="top center",
             showlegend=False,
+            textfont=dict(size=12),
         )
+    )
+    fig.write_image(
+        "C:\\Users\\nflue\\Documents\\Masterarbeit\\03_Projects\\MasterThesis\\BasementEvaluations\\out\\plots_shieldstress\\stacked_material_index.svg", format="svg", width=1200, height=900,
+        scale=2
     )
 
     fig.show()
@@ -274,20 +278,25 @@ def evaluate_simulation_on_given_points(
                 os.path.join(file_path, "area_per_dewatering_speed.csv")
             )
 
-            cmap = matplotlib.colors.ListedColormap(["#f0f9e8", "#bae4bc", "#7bccc4", "#2b8cbe"])
+            cmap = {"0 - 10": "#f0f9e8", "10.1 - 20": "#bae4bc", "20.1 - 30": "#7bccc4", "> 30":"#2b8cbe"}
+            #cmap = matplotlib.colors.ListedColormap(["#f0f9e8", "#bae4bc", "#7bccc4", "#2b8cbe"])
 
-            dewatering_mesh.plot(column="speed", cmap=cmap, legend=True, missing_kwds={"color": "white"})
-            file_name = f"dewatering_categorized.jpg"
-            plt.savefig(file_path + file_name)
+            #dewatering_mesh.plot(column="speed", cmap=cmap, legend=True, missing_kwds={"color": "white"})
+            #file_name = f"\\dewatering_categorized.jpg"
+            #plt.savefig(file_path + file_name)
 
-            # file_name = f"dewatering.shp"
-            # dewatering_mesh.to_file(file_path + file_name)
+            file_name = f"\\dewatering.gpkg"
+            dewatering_mesh.drop(dewatering_mesh.columns.difference(['geometry', 'speed','avg_cm/h']), axis=1, inplace=True)
+            dewatering_mesh.dropna(axis=0, inplace=True)
+            dewatering_mesh.to_file(f"{file_path}{file_name}", driver="GPKG")
 
         # evaluate some intermediate states without comparison:
         print(experiment_id)
 
         if do_individual_evaluations := True:
             _all_selections_to_concat = []
+            time_stamps_to_evaluate = [8100]
+            #time_stamps_to_evaluate = [16200, 32400, 64800, 97200, 129600]
             for time_stamp in tqdm(time_stamps_to_evaluate_individually):
                 mapping_for_step = create_default_state_to_name_in_shape_file_mapping(time_stamp)
                 mesh_for_this_time_step = create_mesh_from_mapped_values(resulting_geo_data_frames, mapping_for_step)
@@ -298,10 +307,12 @@ def evaluate_simulation_on_given_points(
                 )
                 _all_selections_to_concat.append(selection_where_flow_velocity_and_wd_are_too_small)
                 _all_selections_to_concat[-1]["time_step"] = time_stamp
-                # selection_where_flow_velocity_and_wd_are_too_small.to_file(
-                # f"out\\shapes_shear_stress\\shear_stress{time_stamp}.gpkg", driver="GPKG"
-                # )
-                if log_shear_stress := False:
+
+                if time_stamp in time_stamps_to_evaluate:
+                    selection_where_flow_velocity_and_wd_are_too_small.to_file(
+                    f"out\\plots_shieldstress\\shear_stress{time_stamp}.gpkg", driver="GPKG"
+                    )
+                if log_shear_stress := True:
                     logger_shear_stress = calculate_and_log_shear_stress_statistics(
                         logger_shear_stress=logger_shear_stress,
                         time_step=time_stamp,
@@ -310,10 +321,6 @@ def evaluate_simulation_on_given_points(
                         selection_where_wd_and_v_too_small=selection_where_flow_velocity_and_wd_are_too_small,
                     )
 
-                    area_where_critical_shield_stress_is_reached = select_area_where_crit_shield_stress_is_reached(
-                        selection_where_wd_and_v_too_small=selection_where_flow_velocity_and_wd_are_too_small,
-                        evaluation_parameters=evaluation_parameters_for_shear_stress,
-                    )
 
                     area_where_critical_shield_stress_is_reached_chezy = (
                         select_area_where_crit_shield_stress_is_reached_with_chezy(
@@ -325,11 +332,6 @@ def evaluate_simulation_on_given_points(
                     # area_where_critical_shield_stress_is_reached_chezy.plot()
                     # plt.savefig(f"out\\plots_shieldstress\\shield{time_stamp}_chezy.jpg")
 
-                    area_where_guenter_criterion_is_reached = select_area_where_guenter_criterion_is_reached(
-                        selection_where_wd_and_v_too_small=selection_where_flow_velocity_and_wd_are_too_small,
-                        evaluation_parameters=evaluation_parameters_for_shear_stress,
-                    )
-
                     area_where_guenter_criterion_is_reached_chezy = (
                         select_area_where_guenter_criterion_is_reached_chezy(
                             selection_where_wd_and_v_too_small=selection_where_flow_velocity_and_wd_are_too_small,
@@ -337,8 +339,12 @@ def evaluate_simulation_on_given_points(
                         )
                     )
 
+                    area_where_tau_d90_is_reached = (select_area_where_crit_tau_is_reached(selection_where_flow_velocity_and_wd_are_too_small, 72))
+
                     # area_where_guenter_criterion_is_reached_chezy.plot()
                     # plt.savefig(f"out\\plots_shieldstress\\guenter{time_stamp}_chezy.jpg")
+
+
 
                 if hmid := False:
                     logger_hmid = calculate_and_log_hmid_statistics(
@@ -355,15 +361,18 @@ def evaluate_simulation_on_given_points(
 
             del _all_selections_to_concat[0]
             all_selections = gpd.GeoDataFrame(
-                pd.concat(_all_selections_to_concat, axis=0, ignore_index=True), crs=_all_selections_to_concat[0].crs
+                pd.concat(_all_selections_to_concat, axis=0, ignore_index=True),
+                crs=_all_selections_to_concat[0].crs
             )
-            all_selections["discharge"] = all_selections["time_step"]*30/8100
+            all_selections["discharge"] = all_selections["time_step"] * 30 / 8100
+            #all_selections.to_file(r"C:\Users\nflue\Documents\Masterarbeit\03_Projects\MasterThesis\BasementEvaluations\out\plots_shieldstress\shield_stress.gpkg", driver="GPKG")
+
             another_function_that_will_sexually_embarrass_me(all_selections)
             the_plot_that_forces_me_to_wear_sexy_stuff(
                 all_selections.drop(
                     all_selections[~all_selections["discharge"].isin({60, 120, 240, 360, 480})].index
                 ),
-                [0, 26.6, 55, float("inf")],
+                [0, 26.6, 55, 72, float("inf")],
             )
 
             write_log_for_shear_stress(logger_shear_stress, flood_scenario=flood_scenario)
@@ -375,6 +384,9 @@ def evaluate_simulation_on_given_points(
             before_flood_mapping=before_flood_mapping,
             after_flood_mapping=after_flood_mapping,
         )
+        del before_and_after_flood_mesh["geometrygeometry"]
+
+        #before_and_after_flood_mesh.to_file(f"out\\mesh_calibration_for_visualisation\\mesh_{flood_scenario}.gpkg", driver="GPKG")
 
         valid_mapping = derive_columns_to_lookup_from_flood_scenario(
             before_flood_mapping, after_flood_mapping, flood_scenario
@@ -386,7 +398,7 @@ def evaluate_simulation_on_given_points(
                 mesh_with_all_results=before_and_after_flood_mesh,
                 points=evaluation_points.copy(deep=True),
             )
-            renamed_updated_gps_points.to_file(f"out\\profiles\\gps_points_{experiment_id}.gpkg", driver="GPKG")
+            renamed_updated_gps_points.to_file(f"out\\profiles\\gps_points_{flood_scenario}.gpkg", driver="GPKG")
 
             logger_triple = calculate_and_log_statistics_for_gps_points(
                 renamed_updated_gps_points,
@@ -573,15 +585,15 @@ def write_log_for_shear_stress(logger_shear_stress: CSVLogger, flood_scenario: B
 
 
 def write_log_for_hmid(logger_hmid: CSVLogger, flood_scenario: BeforeOrAfterFloodScenario) -> None:
-    logger_hmid.write_logs_as_csv_to_file("log_hmid_input_01_fine_mesh.csv")
+    logger_hmid.write_logs_as_csv_to_file("log_hmid_input_01_fine_mesh_126000.csv")
 
 
 def main():
     flood_scenario = BeforeOrAfterFloodScenario.af_2020
-    simulation_time_in_seconds = 243000
+    simulation_time_in_seconds = 8100
     sample_time_step_width = 8100
 
-    paths_to_json_with_experiment_paths = PathsToJsonWithExperimentPath.stepwise_experiments_mesh2
+    paths_to_json_with_experiment_paths = PathsToJsonWithExperimentPath.shield_stress_residual_flow
 
     path_to_gps_points = create_paths(flood_scenario).path_to_gps_points
     # old:path_to_mesh = r"C:\Users\nflue\Documents\Masterarbeit\02_Data\04_Model_220309\04_Model\01_input_data_old\BF2020_Mesh\new_mesh_all_inputs\bathymetry_and_mesh_BF2020_computational-mesh.2dm"

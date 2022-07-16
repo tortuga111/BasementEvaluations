@@ -110,10 +110,11 @@ def create_scatter_plot(
         mode="markers",
     )
     fig.add_trace(osbervation_points)
+    min_value = min(gps_points[column_to_make_scatter_from_obs].min(), gps_points[column_to_make_scatter_from_sim].min())
     max_value = max(
         gps_points[column_to_make_scatter_from_obs].max(), gps_points[column_to_make_scatter_from_sim].max()
     )
-    ideal_line = go.Scatter(x=[0, max_value], y=[0, max_value], line=dict(dash="dash"), showlegend=False)
+    ideal_line = go.Scatter(x=[min_value, max_value], y=[min_value, max_value], line=dict(dash="dash"), showlegend=False)
     fig.add_trace(ideal_line)
     fig.update_layout(
         xaxis=dict(title="observed water depth [m]"),

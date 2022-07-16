@@ -8,6 +8,7 @@ import pandas as pd
 from plotly import graph_objects as go
 import plotly.express as px
 
+from tools.figure_generator import create_figure_if_none_given
 from misc.dataclasses_for_evaluations import ColumnNamePair
 
 
@@ -17,30 +18,33 @@ def create_scatter_plot(hmid_results):
     isolated.to_csv("hmid.csv")
 
     path_to_csv_hmid_summary = (
-        r"C:\Users\nflue\Documents\Masterarbeit\03_Projects\MasterThesis\BasementEvaluations\out\HMID\summary_hmid.csv"
+        r"C:\Users\nflue\Documents\Masterarbeit\03_Projects\MasterThesis\BasementEvaluations\out\HMID\hmid.csv"
     )
     hmid_summary = pd.read_csv(path_to_csv_hmid_summary, sep=",")
 
-    fig = px.scatter(
+    fig = px.bar(
         hmid_summary,
         x="Q",
         y="water_depth_variability",
         color="length",
+        barmode="group",
     )
+
     fig.update_layout(
-        xaxis=dict(title="maximum discharge [m\u00b3/s]", range=[1, None]),
-        yaxis=dict(title="water depth variability [%]"),
+        xaxis=dict(title="scenario maximum discharge [m\u00b3/s]"),
+        yaxis=dict(title="water depth variability [%]", range=[70, 100]),
     )
-    fig.update_layout(legend=dict(yanchor="bottom", y=0.01, xanchor="right", x=0.99))
+    fig.update_layout(legend=dict(yanchor="top", y=0.99, xanchor="right", x=0.99))
     fig.update_layout(
         autosize=False,
         margin=dict(l=1, r=1, b=1, t=1, pad=4),
-        paper_bgcolor="LightSteelBlue",
         font=dict(
-            size=12,
+            size=20,
         ),
+        plot_bgcolor="#f2f2f2",
         showlegend=True,
     )
+
     fig.write_image(
         "scatter_waterdepthvari.svg",
         format="svg",
@@ -51,23 +55,24 @@ def create_scatter_plot(hmid_results):
 
     fig.show()
 
-    fig = px.scatter(
+    fig = px.bar(
         hmid_summary,
         x="Q",
         y="flow_velocity_variability",
         color="length",
+        barmode="group",
     )
     fig.update_layout(
-        xaxis=dict(title="maximum discharge [m\u00b3/s]", range=[1, None]),
-        yaxis=dict(title="flow velocity variability [%]"),
+        xaxis=dict(title="scenario maximum discharge [m\u00b3/s]"),
+        yaxis=dict(title="flow velocity variability [%]", range=[70, 100]),
     )
-    fig.update_layout(legend=dict(yanchor="bottom", y=0.01, xanchor="right", x=0.99))
+    fig.update_layout(legend=dict(yanchor="top", y=0.99, xanchor="right", x=0.99))
     fig.update_layout(
         autosize=False,
         margin=dict(l=1, r=1, b=1, t=1, pad=4),
-        paper_bgcolor="LightSteelBlue",
+        plot_bgcolor="#f2f2f2",
         font=dict(
-            size=12,
+            size=20,
         ),
         showlegend=True,
     )
@@ -81,19 +86,20 @@ def create_scatter_plot(hmid_results):
 
     fig.show()
 
-    fig = px.scatter(hmid_summary, x="Q", y="hydro_morphological_index_of_diversity", color="length")
+    fig = px.bar(hmid_summary, x="Q", y="hydro_morphological_index_of_diversity", color="length", barmode="group",
+                 )
 
     fig.update_layout(
-        xaxis=dict(title="maximum discharge [m\u00b3/s]", range=[1, None]),
-        yaxis=dict(title="HMID"),
+        xaxis=dict(title="scenario maximum discharge [m\u00b3/s]"),
+        yaxis=dict(title="HMID", range=[8, 15]),
     )
-    fig.update_layout(legend=dict(yanchor="bottom", y=0.01, xanchor="right", x=0.99))
+    fig.update_layout(legend=dict(yanchor="top", y=0.99, xanchor="right", x=0.99))
     fig.update_layout(
         autosize=False,
         margin=dict(l=1, r=1, b=1, t=1, pad=4),
-        paper_bgcolor="LightSteelBlue",
+        plot_bgcolor="#f2f2f2",
         font=dict(
-            size=12,
+            size=20,
         ),
         showlegend=True,
     )
@@ -107,29 +113,6 @@ def create_scatter_plot(hmid_results):
 
     fig.show()
 
-    fig = go.Figure()
-
-    fig.add_trace(
-        go.Scatter(
-            x=hmid_summary["Q"],
-            y=hmid_summary["water_depth_variability"],
-            mode="markers",
-            name="water_depth_variability",
-            hoverinfo="name",
-        )
-    )
-
-    fig.update_layout(legend=dict(yanchor="bottom", y=0.01, xanchor="right", x=0.99))
-    fig.update_layout(
-        autosize=False,
-        margin=dict(l=1, r=1, b=1, t=1, pad=4),
-        paper_bgcolor="LightSteelBlue",
-        font=dict(
-            size=20,
-        ),
-        showlegend=True,
-    )
-    fig.show()
 
 
 # fig.update_layout(legend=go.layout.Legend(yanchor="top", xanchor="left",

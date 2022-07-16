@@ -51,17 +51,20 @@ def create_boxplot(three_dimensional_results):
                 width=0.3,
             )
         )
+    fig.update_layout(
+        xaxis=dict(title="calibration scenario"),
+        yaxis=dict(title="absolute error [m]", range=[-1, 1]),
+    )
     fig.update_layout(legend=dict(yanchor="bottom", y=0.01, xanchor="right", x=0.99))
     fig.update_layout(
         autosize=False,
         margin=dict(l=1, r=1, b=1, t=1, pad=4),
-        paper_bgcolor="LightSteelBlue",
         font=dict(
             size=20,
         ),
-        showlegend=True,
+        plot_bgcolor="#f2f2f2",
+        showlegend=False,
     )
-
     # fig.update_layout(legend=go.layout.Legend(yanchor="top", xanchor="left",
     # x=1, y=1
     #                              ))
@@ -160,9 +163,9 @@ def main():
             gps_points["filename"] = filepath.name
             all_dataframes.append(gps_points)
 
-    combined = pd.concat(all_dataframes, axis=0).reset_index(drop=True)
+    #combined = pd.concat(all_dataframes, axis=0).reset_index(drop=True)
 
-    create_boxplot_for_gps_points(combined)
+    #create_boxplot_for_gps_points(combined)
 
 
 if __name__ == "__main__":

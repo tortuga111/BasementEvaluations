@@ -25,11 +25,11 @@ def create_parameters_for_shear_stress() -> ParametersForShearStressEvaluation:
         density_water=1000,
         density_gravel=2650,
         gravity=9.81,
-        k_strickler=10,
+        k_strickler=35,
         threshold_water_depth=0.01,
         threshold_flow_velocity=0.01,
-        diameter_90=0.113,
-        diameter_50=0.057,
+        diameter_90=0.095,
+        diameter_50=0.035,
         critical_shield_stress=0.047,
     )
 
@@ -63,22 +63,10 @@ def calculate_shear_stress_coefficients(
         * (evaluation_parameters.k_strickler) ** 2
     )
 
-    selection_where_wd_and_v_too_small["tau"] = None
-    selection_where_wd_and_v_too_small["tau"] = (
-        evaluation_parameters.density_water * selection_where_wd_and_v_too_small[velocity_] ** 2
-    ) / dimensionless_cf_squared_with_power_law
-
     selection_where_wd_and_v_too_small["tau_chezy"] = None
     selection_where_wd_and_v_too_small["tau_chezy"] = (
         evaluation_parameters.density_water * selection_where_wd_and_v_too_small[velocity_] ** 2
     ) / selection_where_wd_and_v_too_small[chezy_]
-
-    selection_where_wd_and_v_too_small["theta"] = None
-    selection_where_wd_and_v_too_small["theta"] = selection_where_wd_and_v_too_small["tau"] / (
-        (evaluation_parameters.density_gravel - evaluation_parameters.density_water)
-        * evaluation_parameters.gravity
-        * evaluation_parameters.diameter_50
-    )
 
     selection_where_wd_and_v_too_small["theta_chez"] = None
     selection_where_wd_and_v_too_small["theta_chez"] = selection_where_wd_and_v_too_small["tau_chezy"] / (
@@ -102,17 +90,6 @@ def calculate_area_where_flow_velocity_and_water_depth_are_too_small(
     return selection_where_wd_and_v_too_small.copy()
 
 
-def select_area_where_guenter_criterion_is_reached(
-    selection_where_wd_and_v_too_small: gpd.GeoDataFrame, evaluation_parameters: ParametersForShearStressEvaluation
-) -> gpd.GeoDataFrame:
-    selection_where_guenter_criterion_is_reached: GeoDataFrame = selection_where_wd_and_v_too_small.loc[
-        selection_where_wd_and_v_too_small["theta"]
-        > _calculate_guenter_criterion(
-            diameter_50=evaluation_parameters.diameter_50, diameter_90=evaluation_parameters.diameter_90
-        )
-    ]
-    return selection_where_guenter_criterion_is_reached
-
 
 def select_area_where_guenter_criterion_is_reached_chezy(
     selection_where_wd_and_v_too_small: gpd.GeoDataFrame, evaluation_parameters: ParametersForShearStressEvaluation
@@ -134,14 +111,6 @@ def select_area_where_crit_tau_is_reached(
     ]
     return selection_where_critical_tau_is_reached
 
-
-def select_area_where_crit_shield_stress_is_reached(
-    selection_where_wd_and_v_too_small: gpd.GeoDataFrame, evaluation_parameters: ParametersForShearStressEvaluation
-) -> gpd.GeoDataFrame:
-    selection_where_theta_critical_is_reached: GeoDataFrame = selection_where_wd_and_v_too_small.loc[
-        selection_where_wd_and_v_too_small["theta"] >= evaluation_parameters.critical_shield_stress
-    ]
-    return selection_where_theta_critical_is_reached
 
 
 def select_area_where_crit_shield_stress_is_reached_with_chezy(
@@ -209,26 +178,10 @@ def calculate_entries_for_shear_stress_log(
         abs_area_tau_more_than_90Nm=select_area_where_crit_tau_is_reached(
             selection_where_wd_and_v_too_small, 90
         ).area.sum(),
-        abs_area_critical_shield_stress=select_area_where_crit_shield_stress_is_reached(
-            selection_where_wd_and_v_too_small,
-            evaluation_parameters=evaluation_parameters,
+        abs_area_tau_more_than_D90= select_area_where_crit_tau_is_reached(
+            selection_where_wd_and_v_too_small, 72
         ).area.sum(),
-        area_guenter_criterion=select_area_where_guenter_criterion_is_reached(
-            selection_where_wd_and_v_too_small,
-            evaluation_parameters,
-        ).area.sum(),
-        rel_area_critical_shield_stress=(
-            select_area_where_crit_shield_stress_is_reached(
-                selection_where_wd_and_v_too_small,
-                evaluation_parameters=evaluation_parameters,
-            )
-        ).area.sum()
-        / selection_where_wd_and_v_too_small.area.sum(),
-        rel_area_guenter_criterion=select_area_where_guenter_criterion_is_reached(
-            selection_where_wd_and_v_too_small,
-            evaluation_parameters=evaluation_parameters,
-        ).area.sum()
-        / selection_where_wd_and_v_too_small.area.sum(),
+
         abs_area_critical_shield_stress_chezy=select_area_where_crit_shield_stress_is_reached_with_chezy(
             selection_where_wd_and_v_too_small,
             evaluation_parameters=evaluation_parameters,
