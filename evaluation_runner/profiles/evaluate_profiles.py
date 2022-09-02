@@ -8,12 +8,14 @@ from typing import Iterable
 import geopandas as gpd
 from plotly import graph_objs as go
 import plotly.express as px
+from plotly.graph_objs.scatter import Marker
 
 from extract_data.summarising_mesh import (
     assign_requested_values_from_summarising_mesh_to_point,
     StateToNameInShapeFileMapping,
 )
 from profile_creation.containers import BeforeOrAfterFloodScenario, OrderedProjectedGpsPointsPerProfileLine
+from tools.figure_generator import create_figure_if_none_given
 
 
 def evaluate_points_along_profiles(
@@ -99,46 +101,62 @@ def create_scatter_plot(
         trendline="ols",
     )
     scatter_points, trend_line = tuple(figure.select_traces())
-    fig = go.Figure()
+    fig = create_figure_if_none_given()
+
+    selection_main_channel_points: gpd.GeoDataFrame = gps_points.loc[gps_points["channel"] == "1"]
+    selection_side_channel_points: gpd.GeoDataFrame = gps_points.loc[gps_points["channel"] == "2"]
+
+    observation_points = go.Scatter(
+        x=selection_main_channel_points[column_to_make_scatter_from_obs].values,
+        y=selection_main_channel_points[column_to_make_scatter_from_sim].values,
+        name="GPS points main channel",
+        mode="markers",
+        marker=Marker(color="#5ab4ac", symbol="circle", size=8, line=dict(color="black", width=0.5)),
+    )
+    fig.add_trace(observation_points)
+
+    observation_points_side_channel = go.Scatter(
+        x=selection_side_channel_points[column_to_make_scatter_from_obs].values,
+        y=selection_side_channel_points[column_to_make_scatter_from_sim].values,
+        name="GPS points side channel",
+        mode="markers",
+        marker=dict(color="#d8b365", symbol="square", size=8, line=dict(color="black", width=0.5)),
+    )
+    fig.add_trace(observation_points_side_channel)
+
     trend_line: go.Trace
     trend_line.update(name="linear regression", showlegend=True)
     fig.add_trace(trend_line)
-    osbervation_points = go.Scatter(
-        x=gps_points[column_to_make_scatter_from_obs].values,
-        y=gps_points[column_to_make_scatter_from_sim].values,
-        name="simulated vs observed water depths",
-        mode="markers",
+
+    min_value = min(
+        gps_points[column_to_make_scatter_from_obs].min(), gps_points[column_to_make_scatter_from_sim].min()
     )
-    fig.add_trace(osbervation_points)
-    min_value = min(gps_points[column_to_make_scatter_from_obs].min(), gps_points[column_to_make_scatter_from_sim].min())
     max_value = max(
         gps_points[column_to_make_scatter_from_obs].max(), gps_points[column_to_make_scatter_from_sim].max()
     )
-    ideal_line = go.Scatter(x=[min_value, max_value], y=[min_value, max_value], line=dict(dash="dash"), showlegend=False)
+    ideal_line = go.Scatter(
+        x=[min_value, max_value],
+        y=[min_value, max_value],
+        line=dict(dash="dash"),
+        name="ideal trend line",
+        showlegend=True,
+    )
     fig.add_trace(ideal_line)
     fig.update_layout(
-        xaxis=dict(title="observed water depth [m]"),
-        yaxis=dict(title="simulated water depth [m]"),
-        font=dict(
-            size=20,
-        ),
+        xaxis=dict(title="observed water surface elevation [m.a.s.l.]"),
+        yaxis=dict(title="simulated water surface elevation [m.a.s.l.]"),
+        font=dict(size=30),
     )
+
     fig.write_html(file_path + file_name)
 
-    fig.update_layout(
-        autosize=False,
-        margin=dict(l=1, r=1, b=1, t=1, pad=4),
-        paper_bgcolor="LightSteelBlue",
-    )
-    fig.update_xaxes(range=[0, 1.2])
-    fig.update_yaxes(range=[0, 1.2])
-    fig.update_layout(legend=dict(yanchor="top", xanchor="left", x=0.01, y=0.99))
-    png_filename = file_name if file_name.endswith(".png") else f"{file_name}.png"
+    # fig.update_yaxes(range=[0, 1.2])
+    png_filename = file_name if file_name.endswith(".svg") else f"{file_name}.svg"
     fig.write_image(
         file_path + png_filename,
-        format="png",
-        width=600,
-        height=600,
+        format="svg",
+        width=1200,
+        height=1200,
         scale=2,
     )
 

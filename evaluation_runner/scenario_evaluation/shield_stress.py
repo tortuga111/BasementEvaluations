@@ -90,7 +90,6 @@ def calculate_area_where_flow_velocity_and_water_depth_are_too_small(
     return selection_where_wd_and_v_too_small.copy()
 
 
-
 def select_area_where_guenter_criterion_is_reached_chezy(
     selection_where_wd_and_v_too_small: gpd.GeoDataFrame, evaluation_parameters: ParametersForShearStressEvaluation
 ) -> gpd.GeoDataFrame:
@@ -110,7 +109,6 @@ def select_area_where_crit_tau_is_reached(
         selection_where_wd_and_v_too_small["tau_chezy"] >= critical_value
     ]
     return selection_where_critical_tau_is_reached
-
 
 
 def select_area_where_crit_shield_stress_is_reached_with_chezy(
@@ -178,10 +176,9 @@ def calculate_entries_for_shear_stress_log(
         abs_area_tau_more_than_90Nm=select_area_where_crit_tau_is_reached(
             selection_where_wd_and_v_too_small, 90
         ).area.sum(),
-        abs_area_tau_more_than_D90= select_area_where_crit_tau_is_reached(
+        abs_area_tau_more_than_D90=select_area_where_crit_tau_is_reached(
             selection_where_wd_and_v_too_small, 72
         ).area.sum(),
-
         abs_area_critical_shield_stress_chezy=select_area_where_crit_shield_stress_is_reached_with_chezy(
             selection_where_wd_and_v_too_small,
             evaluation_parameters=evaluation_parameters,

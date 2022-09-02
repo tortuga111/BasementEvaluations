@@ -13,7 +13,7 @@ def write_all_paths_to_a_json(path: str, json_file_name: str) -> None:
 
 def main():
     path_to_experiment_root_folder = (
-        r"C:\Users\nflue\Desktop\experiments\experiments\finer_mesh\crit_shield_stress"
+        r"C:\Users\nflue\Desktop\experiments\experiments\finer_mesh\calibration_run_with_finer_mesh"
     )
     write_all_paths_to_a_json(path_to_experiment_root_folder, "paths_to_experiments.json")
 

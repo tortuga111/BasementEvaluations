@@ -163,9 +163,9 @@ def main():
             gps_points["filename"] = filepath.name
             all_dataframes.append(gps_points)
 
-    #combined = pd.concat(all_dataframes, axis=0).reset_index(drop=True)
+    # combined = pd.concat(all_dataframes, axis=0).reset_index(drop=True)
 
-    #create_boxplot_for_gps_points(combined)
+    # create_boxplot_for_gps_points(combined)
 
 
 if __name__ == "__main__":

@@ -7,7 +7,7 @@ from tools.figure_generator import create_figure_if_none_given
 
 def create_scatter_plot_shear_stress(path_to_csv_shear_stress_results: str):
     shear_stress_results: pd.DataFrame = pd.read_csv(path_to_csv_shear_stress_results, sep=",")
-    shear_stress_results.drop(index=0, inplace=True)
+    # shear_stress_results.drop(index=0, inplace=True)
 
     fig = create_figure_if_none_given()
     traces = [
@@ -18,9 +18,9 @@ def create_scatter_plot_shear_stress(path_to_csv_shear_stress_results: str):
             name="> 72 N/m\u00b2",
             fill="tonexty",
             fillcolor="#8c2d04",
-            stackgroup = "one",
-            opacity = 0.1
-    ),
+            stackgroup="one",
+            opacity=0.1,
+        ),
         go.Scatter(
             x=shear_stress_results["discharge"],
             y=shear_stress_results["area_guenter_criterion_chezy"] - shear_stress_results["abs_area_tau_more_than_D90"],
@@ -29,17 +29,18 @@ def create_scatter_plot_shear_stress(path_to_csv_shear_stress_results: str):
             fill="tonexty",
             fillcolor="#ec7014",
             stackgroup="one",
-            opacity=0.1
+            opacity=0.1,
         ),
         go.Scatter(
             x=shear_stress_results["discharge"],
-            y=shear_stress_results["abs_area_critical_shield_stress_chezy"] - shear_stress_results["area_guenter_criterion_chezy"],
+            y=shear_stress_results["abs_area_critical_shield_stress_chezy"]
+            - shear_stress_results["area_guenter_criterion_chezy"],
             mode="none",
             name="26.6 - 54.9 N/m\u00b2 (\u03C4)".format(),
             fill="tonexty",
             fillcolor="#fec44f",
-            stackgroup = "one"
-    ),
+            stackgroup="one",
+        ),
         go.Scatter(
             x=shear_stress_results["discharge"],
             y=shear_stress_results["wetted_area"] - shear_stress_results["abs_area_critical_shield_stress_chezy"],
@@ -47,7 +48,7 @@ def create_scatter_plot_shear_stress(path_to_csv_shear_stress_results: str):
             name="0 - 26.5 N/m\u00b2",
             fill="tonexty",
             fillcolor="#ffffb2",
-            stackgroup="one"
+            stackgroup="one",
         ),
     ]
     fig.add_traces(list(reversed(traces)))
@@ -57,7 +58,11 @@ def create_scatter_plot_shear_stress(path_to_csv_shear_stress_results: str):
     )
 
     fig.write_image(
-        "..\\..\\out\\plots_shieldstress\\lineplot_shear_stress_stacked.svg", format="svg", width=1200, height=900, scale=2
+        "..\\..\\out\\plots_shieldstress\\lineplot_shear_stress_stacked.svg",
+        format="svg",
+        width=1800,
+        height=1200,
+        scale=2,
     )
     # fig.update_traces(quartilemethod="exclusive")  # or "inclusive", or "linear" by default
 
@@ -106,7 +111,7 @@ def create_scatter_plot_shear_stress(path_to_csv_shear_stress_results: str):
             name="> 50 N/m\u00b2",
             fill="tonexty",
             fillcolor="#43a2ca",
-            opacity=0.6
+            opacity=0.6,
         ),
         go.Scatter(
             x=shear_stress_results["discharge"],
@@ -124,13 +129,15 @@ def create_scatter_plot_shear_stress(path_to_csv_shear_stress_results: str):
     )
 
     fig.write_image(
-        "..\\..\\out\\plots_shieldstress\\lineplot_shear_stress_absarea.svg", format="svg", width=1200, height=900,
-        scale=2
+        "..\\..\\out\\plots_shieldstress\\lineplot_shear_stress_absarea.svg",
+        format="svg",
+        width=1200,
+        height=900,
+        scale=2,
     )
     # fig.update_traces(quartilemethod="exclusive")  # or "inclusive", or "linear" by default
 
     fig.show()
-
 
 
 def create_percentage_plot_of_shear_stress_areas(path_to_csv_shear_stress_results):
@@ -141,18 +148,18 @@ def create_percentage_plot_of_shear_stress_areas(path_to_csv_shear_stress_result
         go.Scatter(
             x=shear_stress_results["discharge"],
             y=shear_stress_results["area_guenter_criterion_chezy"],
-            stackgroup='one',
+            stackgroup="one",
             mode="none",
             name="> 55.5 N/m\u00b2",
             fill="tonexty",
             fillcolor="#41b6c4",
-            groupnorm='percent'
+            groupnorm="percent",
         ),
         go.Scatter(
             x=shear_stress_results["discharge"],
-            y=shear_stress_results["abs_area_critical_shield_stress_chezy"] - shear_stress_results[
-                "area_guenter_criterion_chezy"],
-            stackgroup='one',
+            y=shear_stress_results["abs_area_critical_shield_stress_chezy"]
+            - shear_stress_results["area_guenter_criterion_chezy"],
+            stackgroup="one",
             mode="none",
             name="<= 55.5 N/m\u00b2",
             fill="tonexty",
@@ -161,7 +168,7 @@ def create_percentage_plot_of_shear_stress_areas(path_to_csv_shear_stress_result
         go.Scatter(
             x=shear_stress_results["discharge"],
             y=shear_stress_results["wetted_area"] - shear_stress_results["abs_area_critical_shield_stress_chezy"],
-            stackgroup='one',
+            stackgroup="one",
             mode="none",
             name="<= 26.6 N/m\u00b2",
             fill="tonexty",
@@ -199,6 +206,9 @@ def another_function_that_will_sexually_embarrass_me(some_df: GeoDataFrame) -> N
 
     fig = go.Figure()
     fig.add_traces(
-        [go.Scatter(x=discharge_steps, y=values,name=f"{key}_some_unit", fill="tonexty", mode="none") for key, values in trajectories_to_plot.items() ]
+        [
+            go.Scatter(x=discharge_steps, y=values, name=f"{key}_some_unit", fill="tonexty", mode="none")
+            for key, values in trajectories_to_plot.items()
+        ]
     )
     fig.show()
